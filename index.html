@@ -8,6 +8,9 @@
 <body>
 <x-dc>
 <helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="./styles.css">
   <style>
     body { margin: 0; }
@@ -35,7 +38,8 @@
         <h6 class="text-muted" style="margin-bottom: 10px;">1 &nbsp;&middot;&nbsp; Report type</h6>
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
           <sc-for list="{{ reportTypeCards }}" as="rt" hint-placeholder-count="4">
-            <div class="card elev-sm" style="cursor: pointer; flex: 1; min-width: 220px; border: 1px solid {{ rt.borderColor }};" onClick="{{ rt.select }}">
+            <div class="card elev-sm report-card" style="cursor: pointer; flex: 1; min-width: 220px; border: 1px solid {{ rt.borderColor }}; box-shadow: {{ rt.glow }};" onClick="{{ rt.select }}">
+              <div class="card-icon">{{ rt.icon }}</div>
               <div class="card-title">{{ rt.label }}</div>
             </div>
           </sc-for>
@@ -222,6 +226,7 @@ const REPORT_TYPES = [
   { id: 'loco', label: 'Loco RX Report' },
   { id: 'gprs', label: 'GPRS Faults Report' }
 ];
+const REPORT_TYPE_ICONS = { rfid: '🏷️', station: '📡', loco: '🚆', gprs: '🌐' };
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function fmtDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -887,7 +892,9 @@ class Component extends DCLogic {
 
     const reportTypeCards = REPORT_TYPES.map((rt) => ({
       ...rt,
+      icon: REPORT_TYPE_ICONS[rt.id] || '📄',
       borderColor: s.selectedTypeId === rt.id ? 'var(--color-accent)' : 'var(--color-divider)',
+      glow: s.selectedTypeId === rt.id ? '0 0 0 1px var(--color-accent), 0 10px 26px rgba(145,132,217,0.28)' : 'none',
       select: () => this.selectType(rt.id)
     }));
 
