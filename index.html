@@ -240,7 +240,9 @@ function combinePower(revRaw, fwdRaw) {
   return rev + '/' + fwd;
 }
 
-// Input columns: date,time,station,sequence number,nms id,system version,packet type,firm,firm specific,event name,event info,crc
+// Accepts either the full raw NMS export (date,time,station,sequence number,nms id,system
+// version,packet type,firm,firm specific,event name,event info,crc) or a trimmed export with
+// just Date,Time,Station,Event Name,Event Info — columns are matched by header name.
 function buildStationHealthReport(aoa) {
   const outputHeaders = [
     'Date', 'Hour', 'Station',
@@ -255,15 +257,29 @@ function buildStationHealthReport(aoa) {
     r2fwd: 'radio2forwardpower', r2rev: 'radio2reversepower', r2temp: 'radio2temperature',
     keys: 'currentrunningkeysstatus', r1pa: 'radio1inputpavoltage', r2pa: 'radio2inputpavoltage'
   };
+
+  if (!aoa.length) return { headers: outputHeaders, rows: [], error: 'Sheet is empty.' };
+  const clean = (aoa[0] || []).map((h) => String(h).trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const dateIdx = clean.indexOf('date');
+  const timeIdx = clean.indexOf('time');
+  const stationIdx = clean.indexOf('station');
+  const eventNameIdx = clean.indexOf('eventname');
+  const eventInfoIdx = clean.indexOf('eventinfo');
+  const missing = [];
+  if (dateIdx === -1) missing.push('Date'); if (stationIdx === -1) missing.push('Station');
+  if (eventNameIdx === -1) missing.push('Event Name'); if (eventInfoIdx === -1) missing.push('Event Info');
+  if (missing.length) return { headers: outputHeaders, rows: [], error: 'Missing columns: ' + missing.join(', ') };
+
   const groups = {};
   for (let i = 1; i < aoa.length; i++) {
     const row = aoa[i];
-    if (!row || row.length < 11 || !row[0] || !row[2]) continue;
-    const dateVal = (row[0] instanceof Date) ? fmtDate(row[0]) : String(row[0]).trim();
-    const timeVal = (row[1] instanceof Date) ? fmtTime(row[1]) : String(row[1] || '').trim();
-    const station = String(row[2]).trim();
-    const eventName = normEvent(row[9]);
-    const eventInfo = String(row[10] || '').trim();
+    if (!row || !row[dateIdx] || !row[stationIdx]) continue;
+    const dateVal = (row[dateIdx] instanceof Date) ? fmtDate(row[dateIdx]) : String(row[dateIdx]).trim();
+    const rawTime = timeIdx !== -1 ? row[timeIdx] : '';
+    const timeVal = (rawTime instanceof Date) ? fmtTime(rawTime) : String(rawTime || '').trim();
+    const station = String(row[stationIdx]).trim();
+    const eventName = normEvent(row[eventNameIdx]);
+    const eventInfo = String(row[eventInfoIdx] || '').trim();
     if (!eventName) continue;
     const hourNum = parseInt(String(timeVal).split(':')[0], 10);
     const hourLabel = (isNaN(hourNum) ? '00' : pad2(hourNum)) + ':00';
