@@ -8,47 +8,84 @@
 <body>
 <x-dc>
 <helmet>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="_ds/nocturne-af551e45-2a2a-44ef-b544-084cb9b41b49/styles.css">
+  <script src="_ds/nocturne-af551e45-2a2a-44ef-b544-084cb9b41b49/_ds_bundle.js"></script>
   <style>
     body { margin: 0; }
     input[type="file"] { display: none; }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-thumb { background: var(--color-neutral-700); border-radius: 8px; }
+    @keyframes trainMove { 0% { left: -32px; } 100% { left: 100%; } }
   </style>
 </helmet>
 
 <div style="min-height: 100vh; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body);">
 
-  <div class="nav" style="border-bottom: 1px solid var(--color-divider); padding-left: 24px; padding-right: 24px">
+  <div class="nav" style="border-bottom: 1px solid var(--color-divider); padding: 0 clamp(12px, 4vw, 24px); flex-wrap: wrap; gap: 8px;">
     <span class="nav-brand">Kavach Report Generator</span>
     <a href="#" onClick="{{ goReports }}" aria-current="{{ reportsCurrent }}">Reports</a>
-    <a href="#" onClick="{{ goSettings }}" aria-current="{{ settingsCurrent }}" style="margin-right: 8px;">Settings</a>
+    <a href="#" onClick="{{ toggleProcedure }}" style="margin-left: auto;">Procedure</a>
   </div>
 
-  <div style="padding: 24px; max-width: 1400px; margin: 0 auto;">
+  <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: rgba(22,24,38,0.75); z-index: 60; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px;">
+      <div style="position: relative; width: min(240px, 70vw); height: 6px; background: var(--color-neutral-700); border-radius: var(--radius-md); overflow: hidden;">
+        <div style="position: absolute; top: -6px; width: 30px; height: 12px; background: var(--color-accent); border-radius: 3px; animation: trainMove 1s linear infinite;"></div>
+      </div>
+      <div class="text-muted">Preparing report…</div>
+    </div>
+  </sc-if>
+
+  <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; display: {{ procedureBackdropDisplay }};" onClick="{{ toggleProcedure }}"></div>
+  <div style="position: fixed; top: 0; right: 0; height: 100vh; width: min(380px, 100vw); background: var(--color-neutral-800); border-left: 1px solid var(--color-divider); z-index: 41; overflow-y: auto; padding: clamp(14px, 4vw, 20px); transform: {{ procedureTransform }}; transition: transform 0.25s ease;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+      <h5 style="margin: 0;">Report preparation procedure</h5>
+      <button class="btn btn-icon btn-ghost" onClick="{{ toggleProcedure }}" aria-label="Close">✕</button>
+    </div>
+    <p class="text-muted" style="font-size: 12px; margin: 0 0 16px;">Required columns and steps per report type — column order doesn't matter, only the header names.</p>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <sc-for list="{{ procedures }}" as="p" hint-placeholder-count="5">
+        <div class="card elev-sm" style="border: 1px solid {{ p.borderColor }};">
+          <div class="card-title" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onClick="{{ p.toggle }}">
+            {{ p.label }}
+            <span class="text-muted">{{ p.chevron }}</span>
+          </div>
+          <sc-if value="{{ p.open }}" hint-placeholder-val="{{ false }}">
+            <div class="card-body" style="font-size: 13px;">
+              <div class="text-muted" style="margin-bottom: 6px;"><strong>Sheet:</strong> {{ p.sheet }}</div>
+              <div class="text-muted" style="margin-bottom: 6px;"><strong>Required columns:</strong> {{ p.columns }}</div>
+              <div style="margin-top: 8px;">
+                <sc-for list="{{ p.steps }}" as="step" hint-placeholder-count="3">
+                  <div style="margin-bottom: 4px;">• {{ step }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="padding: clamp(12px, 4vw, 24px); max-width: 1400px; margin: 0 auto;">
 
     <sc-if value="{{ isReports }}" hint-placeholder-val="{{ true }}">
       <div>
         <h2 style="margin-bottom: 4px;">Generate a report</h2>
         <p class="text-muted" style="margin-bottom: 24px;">Pick a report type, upload the raw Excel export, then review and generate.</p>
 
-        <h6 class="text-muted" style="margin-bottom: 10px;">1 &nbsp;&middot;&nbsp; Report type</h6>
+        <h6 class="text-muted" style="margin-bottom: 10px;">1 &nbsp;·&nbsp; Report type</h6>
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
           <sc-for list="{{ reportTypeCards }}" as="rt" hint-placeholder-count="4">
-            <div class="card elev-sm report-card" style="cursor: pointer; flex: 1; min-width: 220px; border: 1px solid {{ rt.borderColor }}; box-shadow: {{ rt.glow }};" onClick="{{ rt.select }}">
-              <div class="card-icon">{{ rt.icon }}</div>
+            <div class="card elev-sm" style="cursor: pointer; flex: 1; min-width: 220px; border: 1px solid {{ rt.borderColor }};" onClick="{{ rt.select }}">
               <div class="card-title">{{ rt.label }}</div>
             </div>
           </sc-for>
         </div>
 
-        <h6 class="text-muted" style="margin-bottom: 10px;">2 &nbsp;&middot;&nbsp; Upload file</h6>
+        <h6 class="text-muted" style="margin-bottom: 10px;">2 &nbsp;·&nbsp; Upload file</h6>
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
           <button class="btn btn-secondary" onClick="{{ triggerFileSelect }}" disabled="{{ uploadDisabled }}">Choose file</button>
-          <input type="file" ref="{{ fileInputRef }}" onChange="{{ onFileChange }}" accept=".xlsx,.xls">
+          <input type="file" ref="{{ fileInputRef }}" onChange="{{ onFileChange }}" accept=".xlsx,.xls,.csv">
           <span class="text-muted">{{ fileStatusText }}</span>
         </div>
         <sc-if value="{{ hasParseError }}" hint-placeholder-val="{{ false }}">
@@ -81,7 +118,7 @@
         <sc-if value="{{ hasPreview }}" hint-placeholder-val="{{ false }}">
           <div>
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 12px; flex-wrap: wrap;">
-              <h6 class="text-muted" style="margin: 0;">3 &nbsp;&middot;&nbsp; Review &amp; generate</h6>
+              <h6 class="text-muted" style="margin: 0;">3 &nbsp;·&nbsp; Review &amp; generate</h6>
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span class="tag tag-neutral">{{ rowCountText }}</span>
                 <span class="tag tag-accent">{{ flaggedCountText }}</span>
@@ -91,7 +128,7 @@
 
             <sc-if value="{{ isDayMode }}" hint-placeholder-val="{{ false }}">
               <div style="overflow: auto; max-height: 480px; margin-bottom: 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
-                <table class="table">
+                <table class="table" style="min-width: 720px;">
                   <thead>
                     <tr><th>S.No</th><th>Station</th><th>Radio-1 Max Fwd/Rev</th><th>Radio-1 Min Fwd/Rev</th><th>Radio-2 Max Fwd/Rev</th><th>Radio-2 Min Fwd/Rev</th></tr>
                   </thead>
@@ -112,24 +149,52 @@
             </sc-if>
             <sc-if value="{{ isNotDayMode }}" hint-placeholder-val="{{ true }}">
               <div style="overflow: auto; max-height: 480px; margin-bottom: 16px; border: 1px solid var(--color-divider); border-radius: var(--radius-md);">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <sc-for list="{{ tableHeaders }}" as="th" hint-placeholder-count="6">
-                        <th style="cursor: pointer;" onClick="{{ th.onSort }}">{{ th.label }}{{ th.sortMark }}</th>
+                <sc-if value="{{ isStationRxMode }}" hint-placeholder-val="{{ false }}">
+                  <table class="table" style="min-width: 640px;">
+                    <thead>
+                      <tr>
+                        <th style="background: var(--color-neutral-700);">Station Name</th>
+                        <th style="background: var(--color-neutral-700);">Station Code</th>
+                        <th style="background: var(--color-accent-700);">Radio1 RX count</th>
+                        <th style="background: var(--color-accent-700);">Radio2 Rx count</th>
+                        <th style="background: var(--color-accent-500);">Packet Loss w.r.t other Radio (%)</th>
+                        <th style="background: var(--color-neutral-800);">Defective Radio</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <sc-for list="{{ stationRxRows }}" as="r" hint-placeholder-count="6">
+                        <tr style="background: {{ r.rowBg }};">
+                          <td>{{ r.name }}</td>
+                          <td>{{ r.code }}</td>
+                          <td>{{ r.r1 }}</td>
+                          <td>{{ r.r2 }}</td>
+                          <td>{{ r.pct }}</td>
+                          <td>{{ r.defective }}</td>
+                        </tr>
                       </sc-for>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <sc-for list="{{ tableRows }}" as="row" hint-placeholder-count="6">
-                      <tr style="background: {{ row.rowBg }};">
-                        <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="6">
-                          <td>{{ cell }}</td>
+                    </tbody>
+                  </table>
+                </sc-if>
+                <sc-if value="{{ isGenericTableMode }}" hint-placeholder-val="{{ true }}">
+                  <table class="table" style="min-width: 560px;">
+                    <thead>
+                      <tr>
+                        <sc-for list="{{ tableHeaders }}" as="th" hint-placeholder-count="6">
+                          <th style="cursor: pointer;" onClick="{{ th.onSort }}">{{ th.label }}{{ th.sortMark }}</th>
                         </sc-for>
                       </tr>
-                    </sc-for>
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      <sc-for list="{{ tableRows }}" as="row" hint-placeholder-count="6">
+                        <tr style="background: {{ row.rowBg }};">
+                          <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="6">
+                            <td>{{ cell }}</td>
+                          </sc-for>
+                        </tr>
+                      </sc-for>
+                    </tbody>
+                  </table>
+                </sc-if>
               </div>
             </sc-if>
 
@@ -155,7 +220,7 @@
               <div class="card elev-sm" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; gap: 12px;" onClick="{{ h.view }}">
                 <div>
                   <div>{{ h.name }}</div>
-                  <div class="text-muted" style="font-size: 12px;">{{ h.date }} &middot; {{ h.rowCount }} rows</div>
+                  <div class="text-muted" style="font-size: 12px;">{{ h.date }} · {{ h.rowCount }} rows</div>
                 </div>
                 <sc-if value="{{ h.hasFlags }}" hint-placeholder-val="{{ false }}">
                   <span class="tag tag-accent">{{ h.flaggedCount }} flagged</span>
@@ -172,7 +237,7 @@
 
     <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
       <div>
-        <h2 style="margin-bottom: 4px;">Settings</h2>
+        
         <p class="text-muted" style="margin-bottom: 24px;">Profile and fault thresholds used when generating reports.</p>
 
         <h6 class="text-muted" style="margin-bottom: 10px;">Profile</h6>
@@ -204,6 +269,10 @@
               <label>Station Health — flag when any radio temperature (°C) above</label>
               <input class="input" type="number" value="{{ thresholdStation }}" onChange="{{ onThresholdStationChange }}">
             </div>
+            <div class="field">
+              <label>Station RX — flag Defective Radio when packet loss (%) exceeds</label>
+              <input class="input" type="number" value="{{ thresholdStationRxLossPct }}" onChange="{{ onThresholdStationRxLossPctChange }}">
+            </div>
           </div>
           <p class="text-muted" style="font-size: 12px; margin: 12px 0 0;">GPRS Faults and Loco RX have no numeric thresholds — GPRS already contains only unresolved active faults, and Loco RX flags rows via its Remarks diagnosis.</p>
         </div>
@@ -219,14 +288,66 @@
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;tweakStrict&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Fault detection&quot;,&quot;description&quot;:&quot;Also flag rows by keyword (miss/fault/fail) in text columns, not just numeric thresholds&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;tweakStrict&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Fault detection&quot;,&quot;description&quot;:&quot;Also flag rows by keyword (miss/fault/fail) in text columns, not just numeric thresholds&quot;}}">
 const REPORT_TYPES = [
   { id: 'rfid', label: 'RFID Tag Miss Report' },
   { id: 'station', label: 'Station Health Report' },
+  { id: 'stationrx', label: 'Station RX Report' },
   { id: 'loco', label: 'Loco RX Report' },
   { id: 'gprs', label: 'GPRS Faults Report' }
 ];
-const REPORT_TYPE_ICONS = { rfid: '🏷️', station: '📡', loco: '🚆', gprs: '🌐' };
+
+const PROCEDURES = [
+  {
+    id: 'rfid', label: 'RFID Tag Miss Report', sheet: 'First sheet in the file',
+    columns: 'Date, Station, Loco Id, Direction, RFID, Tag Link Info, TIN',
+    steps: [
+      'Select RFID Tag Miss Report.',
+      'Upload the Trainmission XL file for "ALL".',
+      'Export the Excel report.'
+    ]
+  },
+  {
+    id: 'station', label: 'Station Health Report', sheet: 'Sheet named "Station Health" if present, else the first sheet',
+    columns: 'Date, Time, Station, Event Name, Event Info',
+    steps: [
+      'Select Required Report.',
+      'Upload the Station Health file for "ALL".',
+      'Wait for the report.',
+      'Export the Excel report.'
+    ]
+  },
+  {
+    id: 'stationrx', label: 'Station RX Report', sheet: 'Sheet named "Station Health" if present, else the first sheet',
+    columns: 'Date, Station, Event Name, Event Info',
+    steps: [
+      'Select Required Report.',
+      'Upload the Station Health file for "ALL".',
+      'Wait for the report.',
+      'Export the Excel report.'
+    ]
+  },
+  {
+    id: 'loco', label: 'Loco RX Report', sheet: 'First sheet in the file',
+    columns: 'Date, Traffic Dir, Cur Station ID, Loco ID, RadRxPktCnt, RadID (e.g. SR1_LR1)',
+    steps: [
+      'Select Required Report.',
+      'Upload the SHM file. Wait for the report.',
+      'Check whether the SHM file data columns are misplaced — correct it if misplaced.',
+      'Export the Excel report.'
+    ]
+  },
+  {
+    id: 'gprs', label: 'GPRS Faults Report', sheet: 'Sheet named "GPRS" if present, else the first sheet',
+    columns: 'Date, Time, Station, Module, Fault Type, Fault Msg',
+    steps: [
+      'Select GPRS Report.',
+      'Upload the GPRS station faults XL file for "ALL station".',
+      'Wait for the report.',
+      'Export the Excel report.'
+    ]
+  }
+];
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function fmtDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -240,36 +361,34 @@ function combinePower(revRaw, fwdRaw) {
   return rev + '/' + fwd;
 }
 
-// Accepts either the full raw NMS export (date,time,station,sequence number,nms id,system
-// version,packet type,firm,firm specific,event name,event info,crc) or a trimmed export with
-// just Date,Time,Station,Event Name,Event Info — columns are matched by header name.
+function cleanHeaderRow(headerRow) { return (headerRow || []).map((h) => String(h).trim().toLowerCase().replace(/[^a-z0-9]/g, '')); }
+function findCol(clean, name) { return clean.indexOf(name); }
+
+// Columns matched by header name: Date, Time, Station, Event Name, Event Info (any column position/order).
 function buildStationHealthReport(aoa) {
   const outputHeaders = [
     'Date', 'Hour', 'Station',
-    'Radio1 Rev/Fwd Power', 'Radio1 Temperature',
-    'Radio2 Rev/Fwd Power', 'Radio2 Temperature',
-    'Current Running Keys Status', 'Current Running Keys Date',
-    'Radio1 Input PA Voltage', 'Radio1 Input PA Voltage Date',
-    'Radio2 Input PA Voltage', 'Radio2 Input PA Voltage Date'
+    'Radio1 Rev/Fwd Power', 'Radio1 Temperature', 'Radio1 PA Temperature', 'Radio1 Tx PA Current',
+    'Radio2 Rev/Fwd Power', 'Radio2 Temperature', 'Radio2 PA Temperature', 'Radio2 Tx PA Current',
+    'Current Running Key', 'Current Running Key Date'
   ];
-  const EVT = {
-    r1fwd: 'radio1forwardpower', r1rev: 'radio1reversepower', r1temp: 'radio1temperature',
-    r2fwd: 'radio2forwardpower', r2rev: 'radio2reversepower', r2temp: 'radio2temperature',
-    keys: 'currentrunningkeysstatus', r1pa: 'radio1inputpavoltage', r2pa: 'radio2inputpavoltage'
-  };
-
   if (!aoa.length) return { headers: outputHeaders, rows: [], error: 'Sheet is empty.' };
-  const clean = (aoa[0] || []).map((h) => String(h).trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
-  const dateIdx = clean.indexOf('date');
-  const timeIdx = clean.indexOf('time');
-  const stationIdx = clean.indexOf('station');
-  const eventNameIdx = clean.indexOf('eventname');
-  const eventInfoIdx = clean.indexOf('eventinfo');
+  const clean = cleanHeaderRow(aoa[0]);
+  const dateIdx = findCol(clean, 'date');
+  const timeIdx = findCol(clean, 'time');
+  const stationIdx = findCol(clean, 'station');
+  const eventNameIdx = findCol(clean, 'eventname');
+  const eventInfoIdx = findCol(clean, 'eventinfo');
   const missing = [];
   if (dateIdx === -1) missing.push('Date'); if (stationIdx === -1) missing.push('Station');
   if (eventNameIdx === -1) missing.push('Event Name'); if (eventInfoIdx === -1) missing.push('Event Info');
   if (missing.length) return { headers: outputHeaders, rows: [], error: 'Missing columns: ' + missing.join(', ') };
 
+  const EVT = {
+    r1fwd: 'radio1forwardpower', r1rev: 'radio1reversepower', r1temp: 'radio1temperature', r1patemp: 'radio1patemperature', r1cur: 'radio1txpacurrent',
+    r2fwd: 'radio2forwardpower', r2rev: 'radio2reversepower', r2temp: 'radio2temperature', r2patemp: 'radio2patemperature', r2cur: 'radio2txpacurrent',
+    keys: 'currentrunningkey'
+  };
   const groups = {};
   for (let i = 1; i < aoa.length; i++) {
     const row = aoa[i];
@@ -278,7 +397,8 @@ function buildStationHealthReport(aoa) {
     const rawTime = timeIdx !== -1 ? row[timeIdx] : '';
     const timeVal = (rawTime instanceof Date) ? fmtTime(rawTime) : String(rawTime || '').trim();
     const station = String(row[stationIdx]).trim();
-    const eventName = normEvent(row[eventNameIdx]);
+    let eventName = normEvent(row[eventNameIdx]);
+    if (eventName.indexOf('currentrunningkey') !== -1) eventName = EVT.keys;
     const eventInfo = String(row[eventInfoIdx] || '').trim();
     if (!eventName) continue;
     const hourNum = parseInt(String(timeVal).split(':')[0], 10);
@@ -300,21 +420,18 @@ function buildStationHealthReport(aoa) {
     return {
       'Date': g.date, 'Hour': g.hour, 'Station': g.station,
       'Radio1 Rev/Fwd Power': combinePower(get(EVT.r1rev), get(EVT.r1fwd)),
-      'Radio1 Temperature': get(EVT.r1temp),
+      'Radio1 Temperature': get(EVT.r1temp), 'Radio1 PA Temperature': get(EVT.r1patemp), 'Radio1 Tx PA Current': get(EVT.r1cur),
       'Radio2 Rev/Fwd Power': combinePower(get(EVT.r2rev), get(EVT.r2fwd)),
-      'Radio2 Temperature': get(EVT.r2temp),
-      'Current Running Keys Status': get(EVT.keys), 'Current Running Keys Date': getDate(EVT.keys),
-      'Radio1 Input PA Voltage': get(EVT.r1pa), 'Radio1 Input PA Voltage Date': getDate(EVT.r1pa),
-      'Radio2 Input PA Voltage': get(EVT.r2pa), 'Radio2 Input PA Voltage Date': getDate(EVT.r2pa)
+      'Radio2 Temperature': get(EVT.r2temp), 'Radio2 PA Temperature': get(EVT.r2patemp), 'Radio2 Tx PA Current': get(EVT.r2cur),
+      'Current Running Key': get(EVT.keys), 'Current Running Key Date': getDate(EVT.keys)
     };
   });
 
   // Forward-fill empty cells per station with that station's latest known value.
   const fillCols = [
-    ['Radio1 Rev/Fwd Power'], ['Radio1 Temperature'], ['Radio2 Rev/Fwd Power'], ['Radio2 Temperature'],
-    ['Current Running Keys Status', 'Current Running Keys Date'],
-    ['Radio1 Input PA Voltage', 'Radio1 Input PA Voltage Date'],
-    ['Radio2 Input PA Voltage', 'Radio2 Input PA Voltage Date']
+    ['Radio1 Rev/Fwd Power'], ['Radio1 Temperature'], ['Radio1 PA Temperature'], ['Radio1 Tx PA Current'],
+    ['Radio2 Rev/Fwd Power'], ['Radio2 Temperature'], ['Radio2 PA Temperature'], ['Radio2 Tx PA Current'],
+    ['Current Running Key', 'Current Running Key Date']
   ];
   const lastByStation = {};
   rows.forEach((row) => {
@@ -332,6 +449,45 @@ function buildStationHealthReport(aoa) {
   });
 
   return { headers: outputHeaders, rows, error: rows.length ? null : 'No matching Station Health rows found — check the Date/Station/Event Name/Event Info columns.' };
+}
+
+// Columns matched by header name: Date, Station, Event Name, Event Info. Totals Radio-1/Radio-2 Rx Packet Count per station.
+function buildStationRxReport(aoa, lossPctThreshold) {
+  const EVT = { r1rx: 'radio1rxpacketcount', r2rx: 'radio2rxpacketcount' };
+  if (!aoa.length) return { headers: [], rows: [], error: 'Sheet is empty.' };
+  const clean = cleanHeaderRow(aoa[0]);
+  const dateIdx = findCol(clean, 'date');
+  const stationIdx = findCol(clean, 'station');
+  const eventNameIdx = findCol(clean, 'eventname');
+  const eventInfoIdx = findCol(clean, 'eventinfo');
+  const missing = [];
+  if (dateIdx === -1) missing.push('Date'); if (stationIdx === -1) missing.push('Station');
+  if (eventNameIdx === -1) missing.push('Event Name'); if (eventInfoIdx === -1) missing.push('Event Info');
+  if (missing.length) return { headers: [], rows: [], error: 'Missing columns: ' + missing.join(', ') };
+
+  const groups = {}; const order = [];
+  for (let i = 1; i < aoa.length; i++) {
+    const row = aoa[i];
+    if (!row || !row[dateIdx] || !row[stationIdx]) continue;
+    const station = String(row[stationIdx]).trim();
+    const eventName = normEvent(row[eventNameIdx]);
+    if (eventName !== EVT.r1rx && eventName !== EVT.r2rx) continue;
+    const val = parseFloat(row[eventInfoIdx]);
+    if (isNaN(val)) continue;
+    if (!groups[station]) { groups[station] = { station, r1: 0, r2: 0 }; order.push(station); }
+    if (eventName === EVT.r1rx) groups[station].r1 += val;
+    else groups[station].r2 += val;
+  }
+  order.sort((a, b) => a.localeCompare(b));
+  const threshold = (typeof lossPctThreshold === 'number' && !isNaN(lossPctThreshold)) ? lossPctThreshold : 10;
+  const rows = order.map((station) => {
+    const g = groups[station];
+    const max = Math.max(g.r1, g.r2);
+    const pct = max > 0 ? Math.round(Math.abs(g.r1 - g.r2) / max * 100) : 0;
+    const defective = pct > threshold ? (g.r1 < g.r2 ? 'Radio-1' : 'Radio-2') : '';
+    return { 'Station Name': g.station, 'Station Code': '', 'Radio1 RX count': g.r1, 'Radio2 Rx count': g.r2, 'Packet Loss w.r.t other Radio (%)': pct, 'Defective Radio': defective };
+  });
+  return { headers: ['Station Name', 'Station Code', 'Radio1 RX count', 'Radio2 Rx count', 'Packet Loss w.r.t other Radio (%)', 'Defective Radio'], rows, error: rows.length ? null : 'No matching Radio-1/Radio-2 Rx Packet Count rows found — check the Station/Event Name/Event Info columns.' };
 }
 
 function buildGprsReport(aoa) {
@@ -454,6 +610,7 @@ function buildRfidReport(aoa, thresholds) {
 }
 
 const RADID_LABELS = { sr1lr1: 'SR1LR1', sr1lr2: 'SR1LR2', sr2lr1: 'SR2LR1', sr2lr2: 'SR2LR2' };
+const RADID_REMARK_LABELS = { sr1lr1: 'Station Radio 1 - Loco Radio 1', sr1lr2: 'Station Radio 1 - Loco Radio 2', sr2lr1: 'Station Radio 2 - Loco Radio 1', sr2lr2: 'Station Radio 2 - Loco Radio 2' };
 const RADID_ORDER = ['sr1lr1', 'sr1lr2', 'sr2lr1', 'sr2lr2'];
 function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
@@ -509,13 +666,13 @@ function buildLocoRxReport(aoa) {
     const max = Math.max(...entries.map((e) => e.val));
     const low = entries.filter((e) => (max - e.val) >= 10);
     if (!low.length) return '';
-    const srOf = (id) => (id.startsWith('sr1') ? 'SR1' : 'SR2');
-    const lrOf = (id) => (id.endsWith('lr1') ? 'LR1' : 'LR2');
-    const srs = new Set(low.map((e) => srOf(e.id)));
-    const lrs = new Set(low.map((e) => lrOf(e.id)));
-    if (srs.size === 1) return 'Station Radio ' + [...srs][0].slice(2) + ' Packet Loss';
-    if (lrs.size === 1) return 'Loco Radio ' + [...lrs][0].slice(2) + ' Packet Loss';
-    return low.map((e) => RADID_LABELS[e.id] + ' Packet Loss').join('; ');
+    const lowSet = new Set(low.map((e) => e.id));
+    // A whole station radio (both LR links) or whole loco radio (both SR links) failing outranks a lone noisy link.
+    const srFullyLow = ['sr1', 'sr2'].filter((sr) => ['lr1', 'lr2'].every((lr) => lowSet.has(sr + lr)));
+    const lrFullyLow = ['lr1', 'lr2'].filter((lr) => ['sr1', 'sr2'].every((sr) => lowSet.has(sr + lr)));
+    if (srFullyLow.length === 1) return 'Station Radio ' + srFullyLow[0].slice(2) + ' Packet Loss';
+    if (lrFullyLow.length === 1) return 'Loco Radio ' + lrFullyLow[0].slice(2) + ' Packet Loss';
+    return low.map((e) => RADID_REMARK_LABELS[e.id] + ' Packet Loss').join('; ');
   }
 
   const rows = order.map((key) => {
@@ -593,12 +750,15 @@ class Component extends DCLogic {
     justSaved: false,
     profileName: '',
     profileStation: '',
-    thresholds: { rfid: 0, station: 60, loco: 70, rfidUniqueLoco: 3, rfidSingleLoco: 5 },
+    thresholds: { rfid: 0, station: 60, loco: 70, rfidUniqueLoco: 3, rfidSingleLoco: 5, stationRxLossPct: 10 },
     parseError: null,
     stationViewMode: 'latestHour',
     locoTrafficFilter: 'all',
     locoDateFilter: 'all',
-    settingsSaved: false
+    settingsSaved: false,
+    procedureOpen: false,
+    procedureOpenId: null,
+    loading: false
   };
 
   fileInputRef = React.createRef();
@@ -612,6 +772,7 @@ class Component extends DCLogic {
       if (typeId === 'rfid' && lk === 'remarks' && typeof raw === 'string' && raw.trim() !== '') flagged = true;
       if (typeId === 'station' && lk.includes('temp') && !isNaN(numeric) && numeric > thresholds.station) flagged = true;
       if (typeId === 'loco' && lk === 'remarks' && typeof raw === 'string' && raw.toLowerCase().includes('packet loss')) flagged = true;
+      if (typeId === 'stationrx' && lk === 'defective radio' && typeof raw === 'string' && raw.trim() !== '') flagged = true;
       if (typeId === 'gprs') flagged = true; // every row is an unresolved active fault by construction
       if (!strict && typeof raw === 'string') {
         const lv = raw.toLowerCase();
@@ -625,7 +786,7 @@ class Component extends DCLogic {
   }
 
   pickSheet(wb, typeId) {
-    const wantName = typeId === 'station' ? 'station health' : typeId === 'gprs' ? 'gprs' : null;
+    const wantName = (typeId === 'station' || typeId === 'stationrx') ? 'station health' : typeId === 'gprs' ? 'gprs' : null;
     if (wantName) {
       const match = wb.SheetNames.find((n) => n.toLowerCase().includes(wantName));
       if (match) return wb.Sheets[match];
@@ -650,8 +811,9 @@ class Component extends DCLogic {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const typeId = this.state.selectedTypeId;
+    this.setState({ loading: true });
     try { await this.loadXLSX(); } catch (err) {
-      this.setState({ fileName: file.name, headers: [], rawRows: [], parseError: err.message });
+      this.setState({ fileName: file.name, headers: [], rawRows: [], parseError: err.message, loading: false });
       return;
     }
     const reader = new FileReader();
@@ -664,6 +826,7 @@ class Component extends DCLogic {
 
         let result;
         if (typeId === 'station') result = buildStationHealthReport(aoa);
+        else if (typeId === 'stationrx') result = buildStationRxReport(aoa, this.state.thresholds.stationRxLossPct);
         else if (typeId === 'gprs') result = buildGprsReport(aoa);
         else if (typeId === 'loco') result = buildLocoRxReport(aoa);
         else if (typeId === 'rfid') result = buildRfidReport(aoa, this.state.thresholds);
@@ -680,18 +843,29 @@ class Component extends DCLogic {
           parseError: result.error,
           search: '', sortCol: null, sortDir: 'asc', justSaved: false,
           stationViewMode: typeId === 'station' ? 'latestHour' : this.state.stationViewMode,
-          locoTrafficFilter: 'all', locoDateFilter: 'all'
+          locoTrafficFilter: 'all', locoDateFilter: 'all',
+          loading: false
         });
       } catch (err) {
-        this.setState({ fileName: file.name, headers: [], rawRows: [], parseError: 'Could not read this file: ' + err.message });
+        this.setState({ fileName: file.name, headers: [], rawRows: [], parseError: 'Could not read this file: ' + err.message, loading: false });
       }
     };
+    reader.onerror = () => this.setState({ loading: false, parseError: 'Could not read this file.' });
     reader.readAsArrayBuffer(file);
   };
 
   triggerFileSelect = () => { if (this.fileInputRef.current) this.fileInputRef.current.click(); };
 
   selectType = (id) => { this.setState({ selectedTypeId: id, justSaved: false }); };
+
+  toggleProcedure = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    this.setState((s) => ({
+      procedureOpen: !s.procedureOpen,
+      procedureOpenId: !s.procedureOpen ? (s.selectedTypeId || s.procedureOpenId) : s.procedureOpenId
+    }));
+  };
+  toggleProcedureItem = (id) => this.setState((s) => ({ procedureOpenId: s.procedureOpenId === id ? null : id }));
 
   onSortHeader = (key) => {
     this.setState((s) => ({
@@ -713,6 +887,7 @@ class Component extends DCLogic {
   }
 
   isDayMode() { return this.state.selectedTypeId === 'station' && this.state.stationViewMode === 'day'; }
+  isStationRxMode() { return this.state.selectedTypeId === 'stationrx'; }
 
   getProcessedRows() {
     const { rawRows, selectedTypeId, thresholds, search, sortCol, sortDir, stationViewMode, locoTrafficFilter, locoDateFilter } = this.state;
@@ -830,28 +1005,54 @@ class Component extends DCLogic {
   };
 
   exportExcel = () => {
-    if (!window.XLSX) return;
+    const type = REPORT_TYPES.find((t) => t.id === this.state.selectedTypeId);
+    const baseTitle = type ? type.label : 'Report';
+    const title = this.state.profileStation ? baseTitle + '.[ ' + this.state.profileStation + ' ]' : baseTitle;
+    const DAY_BG = { 'rgba(220,38,38,0.4)': '#F4B3AC', 'rgba(217,119,6,0.38)': '#FCE0A6', 'transparent': '#FFFFFF' };
+    const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    let colCount, headHtml, bodyHtml;
     if (this.isDayMode()) {
       const day = buildDayReport(this.state.rawRows);
-      const data = day.rows.map((r) => ({ 'S.No': r.sno, 'Station': r.station, 'Radio-1 Max Fwd/Rev': r.c1Text, 'Radio-1 Min Fwd/Rev': r.c2Text, 'Radio-2 Max Fwd/Rev': r.c3Text, 'Radio-2 Min Fwd/Rev': r.c4Text }));
-      const ws = window.XLSX.utils.json_to_sheet(data);
-      const wb = window.XLSX.utils.book_new();
-      window.XLSX.utils.book_append_sheet(wb, ws, 'Day Report');
-      window.XLSX.writeFile(wb, (this.state.fileName || 'day-report') + '.xlsx');
-      return;
+      colCount = day.headers.length;
+      headHtml = day.headers.map((h) => this.excelTh(esc(h))).join('');
+      bodyHtml = day.rows.map((r) =>
+        '<tr>' + this.excelTd(r.sno) + this.excelTd(esc(r.station)) +
+        this.excelTd(esc(r.c1Text), DAY_BG[r.c1Bg] || '#FFFFFF') +
+        this.excelTd(esc(r.c2Text), DAY_BG[r.c2Bg] || '#FFFFFF') +
+        this.excelTd(esc(r.c3Text), DAY_BG[r.c3Bg] || '#FFFFFF') +
+        this.excelTd(esc(r.c4Text), DAY_BG[r.c4Bg] || '#FFFFFF') + '</tr>'
+      ).join('');
+    } else {
+      const { headers, rows } = this.buildTableData();
+      if (!headers.length) return;
+      colCount = headers.length;
+      headHtml = headers.map((h) => this.excelTh(esc(h))).join('');
+      bodyHtml = rows.map((r) => {
+        const bg = r.flagged ? (this.isStationRxMode() ? '#F6C6C2' : '#ECE9FB') : '#FFFFFF';
+        return '<tr>' + headers.map((h) => this.excelTd(esc(r.data[h]), bg)).join('') + '</tr>';
+      }).join('');
     }
-    const { headers, rows } = this.buildTableData();
-    if (!headers.length) return;
-    const data = rows.map((r) => {
-      const obj = {};
-      headers.forEach((h) => { obj[h] = r.data[h]; });
-      return obj;
-    });
-    const ws = window.XLSX.utils.json_to_sheet(data);
-    const wb = window.XLSX.utils.book_new();
-    window.XLSX.utils.book_append_sheet(wb, ws, 'Report');
-    window.XLSX.writeFile(wb, (this.state.fileName || 'report') + '.xlsx');
+
+    const html =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+      '<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>' +
+      '<x:Name>Report</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>' +
+      '<body><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:13px;border-color:#999;">' +
+      '<tr><td colspan="' + colCount + '" style="background:#FFEB00;color:#111111;font-weight:bold;text-align:center;padding:8px;border:1px solid #999;font-size:14px;">' + esc(title) + '</td></tr>' +
+      '<tr>' + headHtml + '</tr>' +
+      bodyHtml +
+      '</table></body></html>';
+
+    const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (this.state.fileName || 'report') + '.xls'; a.click();
+    URL.revokeObjectURL(url);
   };
+
+  excelTh = (label) => '<th style="background:#2E4C8C;color:#FFFFFF;font-weight:bold;text-align:center;padding:8px;border:1px solid #999;">' + label + '</th>';
+  excelTd = (val, bg) => '<td style="background:' + (bg || '#FFFFFF') + ';color:#111111;text-align:center;padding:6px;border:1px solid #ccc;">' + val + '</td>';
 
   printReport = () => {
     const type = REPORT_TYPES.find((t) => t.id === this.state.selectedTypeId);
@@ -908,9 +1109,7 @@ class Component extends DCLogic {
 
     const reportTypeCards = REPORT_TYPES.map((rt) => ({
       ...rt,
-      icon: REPORT_TYPE_ICONS[rt.id] || '📄',
       borderColor: s.selectedTypeId === rt.id ? 'var(--color-accent)' : 'var(--color-divider)',
-      glow: s.selectedTypeId === rt.id ? '0 0 0 1px var(--color-accent), 0 10px 26px rgba(145,132,217,0.28)' : 'none',
       select: () => this.selectType(rt.id)
     }));
 
@@ -942,6 +1141,18 @@ class Component extends DCLogic {
       goReports: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ screen: 'reports' }); },
       goSettings: (e) => { e.preventDefault(); this.setState({ screen: 'settings' }); },
 
+      loading: s.loading,
+      toggleProcedure: this.toggleProcedure,
+      procedureBackdropDisplay: s.procedureOpen ? 'block' : 'none',
+      procedureTransform: s.procedureOpen ? 'translateX(0)' : 'translateX(100%)',
+      procedures: PROCEDURES.map((p) => ({
+        ...p,
+        open: s.procedureOpenId === p.id,
+        chevron: s.procedureOpenId === p.id ? '▲' : '▼',
+        borderColor: s.selectedTypeId === p.id ? 'var(--color-accent)' : 'var(--color-divider)',
+        toggle: () => this.toggleProcedureItem(p.id)
+      })),
+
       hasHistory: s.history.length > 0,
       noHistory: s.history.length === 0,
       historyRows,
@@ -969,6 +1180,13 @@ class Component extends DCLogic {
       ],
       isDayMode: this.isDayMode(),
       isNotDayMode: !this.isDayMode(),
+      isStationRxMode: this.isStationRxMode(),
+      isGenericTableMode: !this.isStationRxMode(),
+      stationRxRows: this.isStationRxMode() ? rows.map((r) => ({
+        name: r.data['Station Name'], code: r.data['Station Code'], r1: r.data['Radio1 RX count'], r2: r.data['Radio2 Rx count'],
+        pct: r.data['Packet Loss w.r.t other Radio (%)'], defective: r.data['Defective Radio'],
+        rowBg: r.flagged ? 'rgba(220,38,38,0.28)' : 'transparent'
+      })) : [],
       dayReportRows: this.isDayMode() ? buildDayReport(s.rawRows).rows : [],
 
       hasPreview,
@@ -993,6 +1211,8 @@ class Component extends DCLogic {
       thresholdStation: s.thresholds.station,
       thresholdRfidUniqueLoco: s.thresholds.rfidUniqueLoco,
       thresholdRfidSingleLoco: s.thresholds.rfidSingleLoco,
+      thresholdStationRxLossPct: s.thresholds.stationRxLossPct,
+      onThresholdStationRxLossPctChange: (e) => this.setState((st) => ({ thresholds: { ...st.thresholds, stationRxLossPct: parseFloat(e.target.value) || 0 } })),
       onThresholdRfidChange: (e) => this.setState((st) => ({ thresholds: { ...st.thresholds, rfid: parseFloat(e.target.value) || 0 } })),
       onThresholdRfidUniqueLocoChange: (e) => this.setState((st) => ({ thresholds: { ...st.thresholds, rfidUniqueLoco: parseFloat(e.target.value) || 0 } })),
       onThresholdRfidSingleLocoChange: (e) => this.setState((st) => ({ thresholds: { ...st.thresholds, rfidSingleLoco: parseFloat(e.target.value) || 0 } })),
