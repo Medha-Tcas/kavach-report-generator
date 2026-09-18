@@ -5,403 +5,196 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kavach Report Generator</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --cyan: #00f5ff;
     --pink: #ff2d78;
-    --cyan-dim: rgba(0,245,255,0.12);
-    --pink-dim: rgba(255,45,120,0.12);
     --glass: rgba(255,255,255,0.04);
     --glass-border: rgba(255,255,255,0.08);
     --bg: #080d1a;
     --surface: #0e1525;
-    --surface2: #141e30;
+    --header-solid: #141e30;
+    --actual-solid: #260a19;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:#e2e8f0;min-height:100vh;overflow-x:hidden;}
+  .blob-cyan{position:fixed;top:-120px;right:-80px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(0,245,255,0.18) 0%,transparent 70%);pointer-events:none;z-index:0;}
+  .blob-pink{position:fixed;bottom:-100px;left:-60px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(255,45,120,0.14) 0%,transparent 70%);pointer-events:none;z-index:0;}
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-track{background:var(--surface);}
+  ::-webkit-scrollbar-thumb{background:rgba(0,245,255,0.3);border-radius:3px;}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(0,245,255,0.5);}
+  .glass{background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(12px);}
+  .neon-cyan{color:var(--cyan);text-shadow:0 0 10px rgba(0,245,255,0.6);}
+  .neon-pink{color:var(--pink);text-shadow:0 0 10px rgba(255,45,120,0.6);}
+
+  /* FIX SELECT DROPDOWNS COLOR SCHEME & OPTIONS */
+  select {
+    color-scheme: dark !important;
+  }
+  select option {
+    background-color: #0e1525 !important;
+    color: #f8fafc !important;
+    padding: 8px 12px;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg);
-    color: #e2e8f0;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+  /* Buttons */
+  .btn-primary{background:linear-gradient(135deg,rgba(0,245,255,0.15),rgba(0,245,255,0.05));border:1px solid rgba(0,245,255,0.4);color:var(--cyan);padding:9px 22px;border-radius:9px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all .2s;text-shadow:0 0 8px rgba(0,245,255,0.4);box-shadow:0 0 12px rgba(0,245,255,0.1);}
+  .btn-primary:hover{background:linear-gradient(135deg,rgba(0,245,255,0.25),rgba(0,245,255,0.1));box-shadow:0 0 20px rgba(0,245,255,0.25);border-color:rgba(0,245,255,0.7);}
+  .btn-primary:disabled{opacity:.3;cursor:not-allowed;box-shadow:none;}
+  .btn-pink{background:linear-gradient(135deg,rgba(255,45,120,0.15),rgba(255,45,120,0.05));border:1px solid rgba(255,45,120,0.4);color:var(--pink);padding:7px 16px;border-radius:8px;font-size:0.76rem;font-weight:600;cursor:pointer;transition:all .2s;}
+  .btn-pink:hover{background:linear-gradient(135deg,rgba(255,45,120,0.25),rgba(255,45,120,0.1));box-shadow:0 0 16px rgba(255,45,120,0.25);}
+  .btn-ghost{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:7px 14px;border-radius:8px;font-size:0.76rem;font-weight:500;cursor:pointer;transition:all .2s;}
+  .btn-ghost:hover{background:rgba(255,255,255,0.08);color:#e2e8f0;}
 
-  /* Ambient glow blobs */
-  .blob-cyan {
-    position: fixed; top: -120px; right: -80px;
-    width: 420px; height: 420px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(0,245,255,0.18) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
-  }
-  .blob-pink {
-    position: fixed; bottom: -100px; left: -60px;
-    width: 360px; height: 360px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,45,120,0.14) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
-  }
+  /* Nav */
+  .nav-btn{padding:7px 16px;border-radius:8px;font-size:0.78rem;font-weight:500;cursor:pointer;transition:all .2s;border:1px solid transparent;color:#64748b;background:transparent;}
+  .nav-btn.active{background:linear-gradient(135deg,rgba(0,245,255,0.15),rgba(0,245,255,0.05));border-color:rgba(0,245,255,0.35);color:var(--cyan);text-shadow:0 0 8px rgba(0,245,255,0.5);box-shadow:0 0 14px rgba(0,245,255,0.1);}
+  .nav-btn:not(.active):hover{color:#cbd5e1;background:rgba(255,255,255,0.05);}
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: var(--surface); }
-  ::-webkit-scrollbar-thumb { background: rgba(0,245,255,0.3); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(0,245,255,0.5); }
+  /* Report cards */
+  .report-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:14px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;}
+  .report-card:hover{border-color:rgba(0,245,255,0.35);box-shadow:0 0 20px rgba(0,245,255,0.08);transform:translateY(-2px);}
+  .report-card.active{border-color:rgba(0,245,255,0.5);background:rgba(0,245,255,0.06);box-shadow:0 0 24px rgba(0,245,255,0.12);}
+  .report-card.active-amber{border-color:rgba(251,191,36,0.5);background:rgba(251,191,36,0.06);box-shadow:0 0 24px rgba(251,191,36,0.12);}
+  .card-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:9px;font-size:0.95rem;}
 
-  /* Glass card */
-  .glass {
-    background: var(--glass);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
+  /* Upload zone */
+  .upload-zone{border:1.5px dashed rgba(0,245,255,0.25);border-radius:12px;padding:16px;background:rgba(0,245,255,0.02);transition:all .2s;}
+  .upload-zone:hover{border-color:rgba(0,245,255,0.45);background:rgba(0,245,255,0.04);}
+  .upload-zone.tkg{border-color:rgba(255,45,120,0.25);background:rgba(255,45,120,0.02);}
+  .upload-zone.tkg:hover{border-color:rgba(255,45,120,0.45);background:rgba(255,45,120,0.04);}
+  .upload-zone.amber{border-color:rgba(251,191,36,0.25);background:rgba(251,191,36,0.02);}
+  input[type="file"]{display:none;}
+  .file-label{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:7px;font-size:0.76rem;font-weight:600;cursor:pointer;transition:all .2s;}
+  .file-label-cyan{background:linear-gradient(135deg,rgba(0,245,255,0.15),rgba(0,245,255,0.05));border:1px solid rgba(0,245,255,0.35);color:var(--cyan);}
+  .file-label-cyan:hover{background:linear-gradient(135deg,rgba(0,245,255,0.25),rgba(0,245,255,0.1));box-shadow:0 0 12px rgba(0,245,255,0.2);}
+  .file-label-pink{background:linear-gradient(135deg,rgba(255,45,120,0.15),rgba(255,45,120,0.05));border:1px solid rgba(255,45,120,0.35);color:var(--pink);}
+  .file-label-pink:hover{background:linear-gradient(135deg,rgba(255,45,120,0.25),rgba(255,45,120,0.1));box-shadow:0 0 12px rgba(255,45,120,0.2);}
+  .file-label-amber{background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(251,191,36,0.05));border:1px solid rgba(251,191,36,0.35);color:#fbbf24;}
+  .file-name-display{font-size:0.7rem;color:#64748b;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
-  /* Neon text */
-  .neon-cyan { color: var(--cyan); text-shadow: 0 0 10px rgba(0,245,255,0.6); }
-  .neon-pink { color: var(--pink); text-shadow: 0 0 10px rgba(255,45,120,0.6); }
+  /* ── TABLE — SOLID OPAQUE HEADERS ── */
+  .tbl-wrap{overflow-x:auto;max-height:550px;position:relative;border-radius:12px;}
+  .report-table{width:100%;border-collapse:separate;border-spacing:0;font-size:0.75rem;white-space:nowrap;table-layout:auto;}
+  .report-table thead{position:sticky;top:0;z-index:20;}
+  .report-table th{
+    padding:11px 16px;
+    font-size:0.68rem;
+    font-weight:700;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--cyan);
+    background-color: var(--header-solid) !important; /* 100% OPAQUE SOLID COLOR */
+    border-bottom:2px solid rgba(0,245,255,0.35);
+    border-right:1px solid rgba(255,255,255,0.06);
+    white-space:nowrap;
+    min-width:100px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.6);
+  }
+  .report-table th:last-child{border-right:none;}
+  .report-table th.col-series{min-width:70px;}
+  .report-table th.col-date{min-width:110px;}
+  .report-table th.col-time{min-width:95px;}
+  .report-table th.col-station{min-width:120px;}
+  .report-table th.col-loco{min-width:100px;}
+  .report-table th.col-absloc{min-width:100px;}
+  .report-table th.col-dir{min-width:100px;}
+  .report-table th.col-rfid{min-width:90px;}
+  .report-table th.col-actual{
+    min-width:120px;
+    color:var(--pink) !important;
+    background-color: var(--actual-solid) !important;
+    text-shadow:0 0 8px rgba(255,45,120,0.5);
+    border-left:1px solid rgba(255,45,120,0.3);
+    border-right:1px solid rgba(255,45,120,0.3);
+  }
+  .report-table th.col-taglink{min-width:160px;}
+  .report-table th.col-tin{min-width:80px;}
+  .report-table th.col-remarks{min-width:170px;}
+  .report-table th.col-generic{min-width:120px;}
 
-  /* Neon button */
-  .btn-primary {
-    background: linear-gradient(135deg, rgba(0,245,255,0.15), rgba(0,245,255,0.05));
-    border: 1px solid rgba(0,245,255,0.4);
-    color: var(--cyan);
-    padding: 10px 24px;
-    border-radius: 10px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-shadow: 0 0 8px rgba(0,245,255,0.4);
-    box-shadow: 0 0 12px rgba(0,245,255,0.1), inset 0 0 12px rgba(0,245,255,0.05);
+  .report-table td{
+    padding:9px 16px;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+    border-right:1px solid rgba(255,255,255,0.03);
+    color:#cbd5e1;
+    vertical-align:middle;
+    white-space:nowrap;
+    background-color: #0e1525;
   }
-  .btn-primary:hover {
-    background: linear-gradient(135deg, rgba(0,245,255,0.25), rgba(0,245,255,0.1));
-    box-shadow: 0 0 20px rgba(0,245,255,0.25), inset 0 0 20px rgba(0,245,255,0.08);
-    border-color: rgba(0,245,255,0.7);
+  .report-table td:last-child{border-right:none;}
+  .report-table td.col-actual{
+    color:var(--pink);
+    font-weight:700;
+    font-size:0.77rem;
+    text-shadow:0 0 6px rgba(255,45,120,0.4);
+    background-color: rgba(255,45,120,0.06);
+    border-left:1px solid rgba(255,45,120,0.15);
+    border-right:1px solid rgba(255,45,120,0.15);
   }
-  .btn-primary:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
+  .report-table tbody tr:hover td{background-color:rgba(0,245,255,0.06);}
+  .report-table tbody tr.row-flagged td{background-color:rgba(255,45,120,0.08);}
+  .report-table tbody tr.row-flagged:hover td{background-color:rgba(255,45,120,0.14);}
 
-  .btn-pink {
-    background: linear-gradient(135deg, rgba(255,45,120,0.15), rgba(255,45,120,0.05));
-    border: 1px solid rgba(255,45,120,0.4);
-    color: var(--pink);
-    padding: 8px 18px;
-    border-radius: 8px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-shadow: 0 0 8px rgba(255,45,120,0.4);
-  }
-  .btn-pink:hover {
-    background: linear-gradient(135deg, rgba(255,45,120,0.25), rgba(255,45,120,0.1));
-    box-shadow: 0 0 16px rgba(255,45,120,0.25);
-    border-color: rgba(255,45,120,0.7);
-  }
+  /* Pills & badges */
+  .series-badge{display:inline-block;min-width:26px;text-align:center;background:linear-gradient(135deg,rgba(0,245,255,0.15),rgba(0,245,255,0.05));border:1px solid rgba(0,245,255,0.3);color:var(--cyan);padding:1px 7px;border-radius:20px;font-size:0.65rem;font-weight:700;}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:0.68rem;font-weight:600;}
+  .chip-cyan{background:rgba(0,245,255,0.1);border:1px solid rgba(0,245,255,0.3);color:var(--cyan);}
+  .chip-pink{background:rgba(255,45,120,0.1);border:1px solid rgba(255,45,120,0.3);color:var(--pink);}
+  .chip-gray{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#64748b;}
+  .chip-amber{background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);color:#fbbf24;}
+  .pill-both{background:rgba(255,45,120,0.15);border:1px solid rgba(255,45,120,0.4);color:var(--pink);border-radius:20px;padding:2px 8px;font-size:0.63rem;font-weight:700;}
+  .pill-main{background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:20px;padding:2px 8px;font-size:0.63rem;font-weight:700;}
+  .pill-dup{background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.4);color:#a78bfa;border-radius:20px;padding:2px 8px;font-size:0.63rem;font-weight:700;}
 
-  .btn-ghost {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #94a3b8;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-ghost:hover { background: rgba(255,255,255,0.08); color: #e2e8f0; }
-
-  /* Nav button active */
-  .nav-btn {
-    padding: 8px 18px;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
-    color: #64748b;
-    background: transparent;
-  }
-  .nav-btn.active {
-    background: linear-gradient(135deg, rgba(0,245,255,0.15), rgba(0,245,255,0.05));
-    border-color: rgba(0,245,255,0.35);
-    color: var(--cyan);
-    text-shadow: 0 0 8px rgba(0,245,255,0.5);
-    box-shadow: 0 0 14px rgba(0,245,255,0.1);
-  }
-  .nav-btn:not(.active):hover { color: #cbd5e1; background: rgba(255,255,255,0.05); }
-
-  /* Report type cards */
-  .report-card {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px;
-    padding: 16px;
-    cursor: pointer;
-    transition: all 0.25s;
-    position: relative;
-    overflow: hidden;
-  }
-  .report-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 14px;
-    background: linear-gradient(135deg, transparent, rgba(0,245,255,0.03));
-    opacity: 0;
-    transition: opacity 0.25s;
-  }
-  .report-card:hover::before { opacity: 1; }
-  .report-card:hover {
-    border-color: rgba(0,245,255,0.35);
-    box-shadow: 0 0 20px rgba(0,245,255,0.08), inset 0 0 20px rgba(0,245,255,0.03);
-    transform: translateY(-2px);
-  }
-  .report-card.active {
-    border-color: rgba(0,245,255,0.5);
-    background: rgba(0,245,255,0.06);
-    box-shadow: 0 0 24px rgba(0,245,255,0.12), inset 0 0 24px rgba(0,245,255,0.05);
-  }
-  .report-card.active::before { opacity: 1; }
-  .report-card .card-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 10px;
-    font-size: 1rem;
-  }
-
-  /* File upload zone */
-  .upload-zone {
-    border: 1.5px dashed rgba(0,245,255,0.25);
-    border-radius: 12px;
-    padding: 18px;
-    background: rgba(0,245,255,0.02);
-    transition: all 0.2s;
-  }
-  .upload-zone:hover { border-color: rgba(0,245,255,0.45); background: rgba(0,245,255,0.04); }
-  .upload-zone.tkg { border-color: rgba(255,45,120,0.25); background: rgba(255,45,120,0.02); }
-  .upload-zone.tkg:hover { border-color: rgba(255,45,120,0.45); background: rgba(255,45,120,0.04); }
-
-  /* Custom file input */
-  input[type="file"] {
-    display: none;
-  }
-  .file-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .file-label-cyan {
-    background: linear-gradient(135deg, rgba(0,245,255,0.15), rgba(0,245,255,0.05));
-    border: 1px solid rgba(0,245,255,0.35);
-    color: var(--cyan);
-  }
-  .file-label-cyan:hover {
-    background: linear-gradient(135deg, rgba(0,245,255,0.25), rgba(0,245,255,0.1));
-    box-shadow: 0 0 14px rgba(0,245,255,0.2);
-  }
-  .file-label-pink {
-    background: linear-gradient(135deg, rgba(255,45,120,0.15), rgba(255,45,120,0.05));
-    border: 1px solid rgba(255,45,120,0.35);
-    color: var(--pink);
-  }
-  .file-label-pink:hover {
-    background: linear-gradient(135deg, rgba(255,45,120,0.25), rgba(255,45,120,0.1));
-    box-shadow: 0 0 14px rgba(255,45,120,0.2);
-  }
-
-  /* Table */
-  .tbl-wrap { overflow-x: auto; max-height: 520px; }
-  .report-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; white-space: nowrap; }
-  .report-table thead tr {
-    background: linear-gradient(90deg, rgba(0,245,255,0.08), rgba(255,45,120,0.05));
-    border-bottom: 1px solid rgba(0,245,255,0.2);
-    position: sticky; top: 0; z-index: 5;
-  }
-  .report-table th {
-    padding: 11px 14px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: rgba(0,245,255,0.8);
-  }
-  .report-table th.col-actual {
-    color: var(--pink);
-    text-shadow: 0 0 8px rgba(255,45,120,0.5);
-    border-left: 1px solid rgba(255,45,120,0.2);
-    border-right: 1px solid rgba(255,45,120,0.2);
-  }
-  .report-table td {
-    padding: 9px 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    color: #cbd5e1;
-    vertical-align: middle;
-  }
-  .report-table td.col-actual {
-    color: var(--pink);
-    font-weight: 700;
-    font-size: 0.78rem;
-    text-shadow: 0 0 6px rgba(255,45,120,0.4);
-    background: rgba(255,45,120,0.05);
-    border-left: 1px solid rgba(255,45,120,0.15);
-    border-right: 1px solid rgba(255,45,120,0.15);
-  }
-  .report-table tbody tr:hover { background: rgba(0,245,255,0.04); }
-  .report-table tbody tr.row-flagged { background: rgba(255,45,120,0.06); }
-  .report-table tbody tr.row-flagged:hover { background: rgba(255,45,120,0.1); }
-
-  /* Series badge */
-  .series-badge {
-    display: inline-block;
-    min-width: 28px; text-align: center;
-    background: linear-gradient(135deg, rgba(0,245,255,0.15), rgba(0,245,255,0.05));
-    border: 1px solid rgba(0,245,255,0.3);
-    color: var(--cyan);
-    padding: 2px 7px;
-    border-radius: 20px;
-    font-size: 0.68rem;
-    font-weight: 700;
-  }
-
-  /* Badge chips */
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 600;
-  }
-  .chip-cyan { background: rgba(0,245,255,0.1); border: 1px solid rgba(0,245,255,0.3); color: var(--cyan); }
-  .chip-pink { background: rgba(255,45,120,0.1); border: 1px solid rgba(255,45,120,0.3); color: var(--pink); }
-  .chip-gray { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #64748b; }
-
-  /* Tag link info pills */
-  .pill-both { background: rgba(255,45,120,0.15); border: 1px solid rgba(255,45,120,0.4); color: var(--pink); border-radius: 20px; padding: 2px 8px; font-size: 0.65rem; font-weight: 700; }
-  .pill-main { background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.4); color: #fbbf24; border-radius: 20px; padding: 2px 8px; font-size: 0.65rem; font-weight: 700; }
-  .pill-dup  { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.4); color: #a78bfa; border-radius: 20px; padding: 2px 8px; font-size: 0.65rem; font-weight: 700; }
-
-  /* Settings */
-  .setting-input {
-    width: 100%;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #e2e8f0;
-    padding: 9px 12px;
-    border-radius: 9px;
-    font-size: 0.82rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .setting-input:focus { border-color: rgba(0,245,255,0.45); box-shadow: 0 0 10px rgba(0,245,255,0.1); }
+  /* Settings input */
+  .setting-input{width:100%;background:#0e1525;border:1px solid rgba(255,255,255,0.15);color:#e2e8f0;padding:8px 12px;border-radius:9px;font-size:0.8rem;outline:none;transition:border-color .2s;}
+  .setting-input:focus{border-color:rgba(0,245,255,0.45);box-shadow:0 0 10px rgba(0,245,255,0.1);}
 
   /* Spinner */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner { animation: spin 0.8s linear infinite; }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spinner{animation:spin .8s linear infinite;}
 
-  /* Drawer transition */
-  .drawer { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+  /* KPI cards for OP Summary */
+  .kpi-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px;text-align:center;transition:all .3s;}
+  .kpi-card:hover{transform:translateY(-4px);border-color:rgba(0,245,255,0.3);box-shadow:0 8px 24px rgba(0,245,255,0.1);}
 
-  /* Section label */
-  .section-label {
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: rgba(0,245,255,0.5);
-    margin-bottom: 10px;
-  }
+  /* Tabs for OP Summary */
+  .tab-btn{padding:8px 20px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all .2s;border:1px solid transparent;color:#64748b;background:transparent;}
+  .tab-btn.active{background:linear-gradient(135deg,rgba(251,191,36,0.15),rgba(251,191,36,0.05));border-color:rgba(251,191,36,0.4);color:#fbbf24;}
 
-  /* Header divider line */
-  .neon-hr {
-    border: none;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(0,245,255,0.3), rgba(255,45,120,0.3), transparent);
-    margin: 0;
-  }
+  /* Neon HR */
+  .neon-hr{border:none;height:1px;background:linear-gradient(90deg,transparent,rgba(0,245,255,0.3),rgba(255,45,120,0.3),transparent);margin:0;}
+  .sep{width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,245,255,0.15),transparent);margin:14px 0;}
+  .section-label{font-size:0.63rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,245,255,0.5);margin-bottom:10px;}
 
-  /* Glow separator */
-  .sep { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,245,255,0.15), transparent); margin: 16px 0; }
-
-  /* Procedure drawer content */
-  .proc-card {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 12px;
-  }
-  .proc-card h4 { font-size: 0.82rem; font-weight: 700; margin-bottom: 8px; }
-
-  /* History item */
-  .history-item {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 10px;
-    padding: 12px 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .history-item:hover { border-color: rgba(0,245,255,0.3); background: rgba(0,245,255,0.04); }
-
-  /* Status banner */
-  .banner-error { background: rgba(255,45,120,0.1); border: 1px solid rgba(255,45,120,0.35); color: #f87171; border-radius: 10px; padding: 12px 16px; font-size: 0.82rem; }
-  .banner-info { background: rgba(0,245,255,0.07); border: 1px solid rgba(0,245,255,0.25); color: var(--cyan); border-radius: 10px; padding: 12px 16px; font-size: 0.82rem; }
-
-  /* Selected file name */
-  .file-name-display {
-    font-size: 0.73rem;
-    color: #64748b;
-    margin-top: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  /* Drawer */
+  .drawer{transition:transform .3s cubic-bezier(.4,0,.2,1);}
+  .proc-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:13px;margin-bottom:11px;}
+  .proc-card h4{font-size:0.8rem;font-weight:700;margin-bottom:7px;}
+  .history-item{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:11px 13px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:space-between;gap:11px;}
+  .history-item:hover{border-color:rgba(0,245,255,0.3);background:rgba(0,245,255,0.04);}
 </style>
 </head>
 <body>
 
-<!-- Ambient blobs -->
 <div class="blob-cyan"></div>
 <div class="blob-pink"></div>
 
 <!-- ─── HEADER ─── -->
-<header style="background: rgba(8,13,26,0.92); border-bottom: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(16px); position: sticky; top:0; z-index: 30;">
-  <div style="max-width:1400px; margin:0 auto; padding:0 24px; height:60px; display:flex; align-items:center; justify-content:space-between;">
-    
-    <!-- Logo -->
-    <div style="display:flex; align-items:center; gap:12px;">
-      <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, rgba(0,245,255,0.2), rgba(255,45,120,0.15)); border:1px solid rgba(0,245,255,0.4); display:flex; align-items:center; justify-content:center; font-size:1rem; box-shadow:0 0 16px rgba(0,245,255,0.15);">
-        ⚡
-      </div>
-      <span style="font-size:1rem; font-weight:700; letter-spacing:-0.01em;">
+<header style="background:rgba(8,13,26,0.94);border-bottom:1px solid rgba(255,255,255,0.06);backdrop-filter:blur(16px);position:sticky;top:0;z-index:30;">
+  <div style="max-width:1500px;margin:0 auto;padding:0 22px;height:58px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(0,245,255,0.2),rgba(255,45,120,0.15));border:1px solid rgba(0,245,255,0.4);display:flex;align-items:center;justify-content:center;font-size:0.95rem;box-shadow:0 0 14px rgba(0,245,255,0.15);">⚡</div>
+      <span style="font-size:0.95rem;font-weight:700;letter-spacing:-.01em;">
         <span class="neon-cyan">Kavach</span>
-        <span style="color:#475569; margin-left:6px; font-weight:400; font-size:0.82rem;">Report Generator</span>
+        <span style="color:#475569;margin-left:5px;font-weight:400;font-size:0.78rem;">Report Generator</span>
       </span>
     </div>
-
-    <!-- Nav tabs -->
-    <nav style="display:flex; gap:4px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:5px;">
+    <nav style="display:flex;gap:3px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:11px;padding:4px;">
       <button id="nav-reports" class="nav-btn active" onclick="switchNav('reports')">📊 Reports</button>
       <button id="nav-procedure" class="nav-btn" onclick="toggleProcedureDrawer()">📋 Guide</button>
       <button id="nav-settings" class="nav-btn" onclick="switchNav('settings')">⚙️ Settings</button>
@@ -411,179 +204,205 @@
 </header>
 
 <!-- ─── MAIN ─── -->
-<main style="max-width:1400px; margin:0 auto; padding:28px 24px; position:relative; z-index:1;">
+<main style="max-width:1500px;margin:0 auto;padding:24px 22px;position:relative;z-index:1;">
 
   <!-- ════ REPORTS SECTION ════ -->
   <div id="section-reports">
 
-    <!-- Step 1: Report Type -->
-    <div style="margin-bottom:24px;">
+    <!-- Report Type Cards -->
+    <div style="margin-bottom:22px;">
       <div class="section-label">01 — Select Report Type</div>
-      <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:14px;">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
 
         <div class="report-card active" id="card-rfid" onclick="selectReportType('rfid')">
-          <div class="card-icon" style="background:rgba(0,245,255,0.1); border:1px solid rgba(0,245,255,0.25);">📡</div>
-          <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:4px;">RFID Tag Miss</div>
-          <div style="font-size:0.7rem; color:#475569;">Transma & Tag_Linking_data matching</div>
+          <div class="card-icon" style="background:rgba(0,245,255,0.1);border:1px solid rgba(0,245,255,0.25);">📡</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;margin-bottom:3px;">RFID Tag Miss</div>
+          <div style="font-size:0.67rem;color:#475569;">Transma & Tag_Linking_data</div>
         </div>
 
         <div class="report-card" id="card-station" onclick="selectReportType('station')">
-          <div class="card-icon" style="background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.25);">🏗️</div>
-          <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:4px;">Station Health</div>
-          <div style="font-size:0.7rem; color:#475569;">Power, Temp, PA Current</div>
+          <div class="card-icon" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);">🏗️</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;margin-bottom:3px;">Station Health</div>
+          <div style="font-size:0.67rem;color:#475569;">Power, Temp, PA Current</div>
         </div>
 
         <div class="report-card" id="card-stationrx" onclick="selectReportType('stationrx')">
-          <div class="card-icon" style="background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.25);">📶</div>
-          <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:4px;">Station RX</div>
-          <div style="font-size:0.7rem; color:#475569;">Radio-1 vs Radio-2</div>
+          <div class="card-icon" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);">📶</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;margin-bottom:3px;">Station RX</div>
+          <div style="font-size:0.67rem;color:#475569;">Radio-1 vs Radio-2</div>
         </div>
 
         <div class="report-card" id="card-loco" onclick="selectReportType('loco')">
-          <div class="card-icon" style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25);">🚂</div>
-          <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:4px;">Loco RX</div>
-          <div style="font-size:0.7rem; color:#475569;">SR1LR1–SR2LR2 Loss</div>
+          <div class="card-icon" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);">🚂</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;margin-bottom:3px;">Loco RX</div>
+          <div style="font-size:0.67rem;color:#475569;">SR1LR1–SR2LR2 Loss</div>
         </div>
 
         <div class="report-card" id="card-gprs" onclick="selectReportType('gprs')">
-          <div class="card-icon" style="background:rgba(255,45,120,0.1); border:1px solid rgba(255,45,120,0.25);">🌐</div>
-          <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:4px;">GPRS Faults</div>
-          <div style="font-size:0.7rem; color:#475569;">Active Unresolved Faults</div>
+          <div class="card-icon" style="background:rgba(255,45,120,0.1);border:1px solid rgba(255,45,120,0.25);">🌐</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;margin-bottom:3px;">GPRS Faults</div>
+          <div style="font-size:0.67rem;color:#475569;">Active Unresolved</div>
+        </div>
+
+        <div class="report-card" id="card-opsummary" onclick="selectReportType('opsummary')">
+          <div class="card-icon" style="background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);">🚆</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;margin-bottom:3px;">OP Summary</div>
+          <div style="font-size:0.67rem;color:#475569;">Mission Availability</div>
         </div>
 
       </div>
     </div>
 
-    <!-- Step 2: Upload -->
-    <div class="glass" style="border-radius:16px; padding:22px; margin-bottom:20px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+    <!-- Upload Zone -->
+    <div class="glass" style="border-radius:15px;padding:20px;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
         <div class="section-label" style="margin:0;">02 — Upload Input File(s)</div>
         <span id="active-report-badge" class="chip chip-cyan">RFID Tag Miss Report</span>
       </div>
 
       <!-- RFID dual upload -->
-      <div id="rfid-upload-inputs" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-
-        <!-- Transma -->
+      <div id="rfid-upload-inputs" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
         <div class="upload-zone">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
             <div>
-              <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">Transma File(s)</div>
-              <div style="font-size:0.68rem; color:#64748b; margin-top:2px;">Required · Date, Station, Loco Id, RFID, Tag Link Info, TIN</div>
+              <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;">Transma File(s)</div>
+              <div style="font-size:0.65rem;color:#64748b;margin-top:2px;">Required · Date, Station, Loco Id, RFID, Tag Link Info, TIN</div>
             </div>
             <span class="chip chip-cyan">Required</span>
           </div>
-          <label for="file-transma" class="file-label file-label-cyan">
-            📂 Choose File(s)
-          </label>
-          <input type="file" id="file-transma" accept=".xlsx,.xls,.csv" multiple onchange="updateFileName('file-transma', 'name-transma')">
+          <label for="file-transma" class="file-label file-label-cyan">📂 Choose File(s)</label>
+          <input type="file" id="file-transma" accept=".xlsx,.xls,.csv" multiple onchange="updateFileName('file-transma','name-transma')">
           <div id="name-transma" class="file-name-display">No file selected</div>
         </div>
-
-        <!-- Tag_Linking_data -->
         <div class="upload-zone tkg">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
             <div>
-              <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0;">Tag_Linking_data File(s)</div>
-              <div style="font-size:0.68rem; color:#64748b; margin-top:2px;">Optional · Upload to compute <span style="color:var(--pink); font-weight:700;">Actual Tag</span> for BothTagMissing</div>
+              <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;">Tag_Linking_data File(s)</div>
+              <div style="font-size:0.65rem;color:#64748b;margin-top:2px;">Optional · Enables <span style="color:var(--pink);font-weight:700;">Actual Tag</span> column for BothTagMissing</div>
             </div>
             <span class="chip chip-pink">Optional</span>
           </div>
-          <label for="file-tkg" class="file-label file-label-pink">
-            📂 Choose File(s)
-          </label>
-          <input type="file" id="file-tkg" accept=".xlsx,.xls,.csv" multiple onchange="updateFileName('file-tkg', 'name-tkg')">
-          <div id="name-tkg" class="file-name-display">No file selected — <em>Actual Tag column will be hidden</em></div>
+          <label for="file-tkg" class="file-label file-label-pink">📂 Choose File(s)</label>
+          <input type="file" id="file-tkg" accept=".xlsx,.xls,.csv" multiple onchange="updateFileName('file-tkg','name-tkg')">
+          <div id="name-tkg" class="file-name-display">No file — Actual Tag column will be hidden</div>
         </div>
-
       </div>
 
-      <!-- Generic upload (other reports) -->
+      <!-- Generic upload (Station Health / RX / Loco RX / GPRS) -->
       <div id="generic-upload-input" style="display:none;">
         <div class="upload-zone">
-          <div style="font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:6px;">Upload Data File(s)</div>
-          <div style="font-size:0.7rem; color:#64748b; margin-bottom:10px;">All worksheets auto-scanned. Supports .xlsx / .xls / .csv</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;margin-bottom:5px;">Upload Data File(s)</div>
+          <div style="font-size:0.67rem;color:#64748b;margin-bottom:9px;">All worksheets auto-scanned · .xlsx / .xls / .csv</div>
           <label for="file-generic" class="file-label file-label-cyan">📂 Choose File(s)</label>
-          <input type="file" id="file-generic" accept=".xlsx,.xls,.csv" multiple onchange="updateFileName('file-generic', 'name-generic')">
+          <input type="file" id="file-generic" accept=".xlsx,.xls,.csv" multiple onchange="updateFileName('file-generic','name-generic')">
           <div id="name-generic" class="file-name-display">No file selected</div>
         </div>
       </div>
 
-      <div style="margin-top:18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-        <button id="btn-process" class="btn-primary" onclick="processSelectedReport()" disabled>
-          ⚡ Generate Report
-        </button>
-        <div id="processing-spinner" style="display:none; align-items:center; gap:8px; font-size:0.78rem; color:#64748b;">
-          <svg class="spinner" style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24">
+      <!-- OP Summary upload -->
+      <div id="opsummary-upload-input" style="display:none;">
+        <div class="upload-zone amber">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;">
+            <div>
+              <div style="font-size:0.8rem;font-weight:700;color:#e2e8f0;">TrainMission Log File(s) or ZIP Archive</div>
+              <div style="font-size:0.65rem;color:#64748b;margin-top:2px;">Required columns: Date, Time, Station, Loco Id, Direction, Mode, Brake, Abs Loc, Speed, RFID, TIN</div>
+            </div>
+            <span class="chip chip-amber">Required</span>
+          </div>
+          <label for="file-opsummary" class="file-label file-label-amber">📂 Choose File(s)</label>
+          <input type="file" id="file-opsummary" accept=".xlsx,.xls,.csv,.zip" multiple onchange="updateFileName('file-opsummary','name-opsummary')">
+          <div id="name-opsummary" class="file-name-display">No file selected</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button id="btn-process" class="btn-primary" onclick="processSelectedReport()" disabled>⚡ Generate Report</button>
+        <div id="processing-spinner" style="display:none;align-items:center;gap:8px;font-size:0.75rem;color:#64748b;">
+          <svg class="spinner" style="width:15px;height:15px;" fill="none" viewBox="0 0 24 24">
             <circle style="opacity:.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path style="opacity:.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          Processing spreadsheets...
+          Processing...
         </div>
-        <div id="status-banner" style="display:none; flex:1;"></div>
+        <div id="status-banner" style="display:none;flex:1;"></div>
       </div>
     </div>
 
-    <!-- Toolbar (search + extra controls) -->
-    <div id="report-controls" style="display:none; margin-bottom:14px;">
-      <div class="glass" style="border-radius:12px; padding:12px 16px; display:flex; align-items:center; flex-wrap:wrap; gap:12px; justify-content:space-between;">
-
-        <!-- Station Health view controls -->
-        <div id="controls-station" style="display:none; align-items:center; gap:8px;">
-          <span style="font-size:0.7rem; color:#64748b; font-weight:600;">View:</span>
-          <button onclick="setStationView('all')" id="btn-stn-all" class="btn-ghost" style="font-size:0.72rem; padding:5px 12px;">All Hours</button>
-          <button onclick="setStationView('latest')" id="btn-stn-latest" class="btn-primary" style="font-size:0.72rem; padding:5px 12px;">Latest Hour</button>
-          <button onclick="setStationView('day')" id="btn-stn-day" class="btn-ghost" style="font-size:0.72rem; padding:5px 12px;">Day Report</button>
+    <!-- Toolbar (search + report-specific controls) -->
+    <div id="report-controls" style="display:none;margin-bottom:14px;">
+      <div class="glass" style="border-radius:11px;padding:11px 15px;display:flex;align-items:center;flex-wrap:wrap;gap:11px;justify-content:space-between;">
+        <div id="controls-station" style="display:none;align-items:center;gap:7px;">
+          <span style="font-size:0.68rem;color:#64748b;font-weight:600;">View:</span>
+          <button onclick="setStationView('all')" id="btn-stn-all" class="btn-ghost" style="font-size:0.7rem;padding:4px 11px;">All Hours</button>
+          <button onclick="setStationView('latest')" id="btn-stn-latest" class="btn-primary" style="font-size:0.7rem;padding:4px 11px;">Latest Hour</button>
+          <button onclick="setStationView('day')" id="btn-stn-day" class="btn-ghost" style="font-size:0.7rem;padding:4px 11px;">Day Report</button>
+          <span id="station-latest-legend" style="display:none;font-size:0.65rem;color:#fbbf24;align-items:center;gap:4px;margin-left:4px;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(251,191,36,0.35);box-shadow:inset 0 0 0 1px rgba(251,191,36,0.6);"></span>
+            Backfilled from an earlier hour (≤3h)
+          </span>
         </div>
-
-        <!-- Loco filters -->
-        <div id="controls-loco" style="display:none; align-items:center; gap:12px;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:0.7rem; color:#64748b;">Traffic Dir:</span>
-            <select id="filter-loco-traffic" onchange="applyLocoFilters()" class="setting-input" style="width:auto; padding:5px 10px; font-size:0.73rem;">
+        <div id="controls-loco" style="display:none;align-items:center;gap:10px;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span style="font-size:0.68rem;color:#64748b;">Traffic Dir:</span>
+            <select id="filter-loco-traffic" onchange="applyLocoFilters()" class="setting-input" style="width:auto;padding:4px 9px;font-size:0.7rem;">
               <option value="all">All</option>
             </select>
           </div>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:0.7rem; color:#64748b;">Date:</span>
-            <select id="filter-loco-date" onchange="applyLocoFilters()" class="setting-input" style="width:auto; padding:5px 10px; font-size:0.73rem;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span style="font-size:0.68rem;color:#64748b;">Date:</span>
+            <select id="filter-loco-date" onchange="applyLocoFilters()" class="setting-input" style="width:auto;padding:4px 9px;font-size:0.7rem;">
               <option value="all">All</option>
             </select>
           </div>
         </div>
-
-        <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
-          <!-- Search -->
+        <!-- OP Summary tabs -->
+        <div id="controls-opsummary" style="display:none;align-items:center;gap:7px;">
+          <button id="tab-availability" class="tab-btn active" onclick="switchOpTab('availability')">📊 Operational Availability</button>
+          <button id="tab-failures" class="tab-btn" onclick="switchOpTab('failures')">⚠️ Mode Transitions & Failures</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
           <div style="position:relative;">
-            <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.8rem;">🔍</span>
+            <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#64748b;font-size:0.75rem;">🔍</span>
             <input type="text" id="table-search" oninput="filterTableSearch()" placeholder="Search results..."
-              style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:#e2e8f0; padding:7px 12px 7px 30px; border-radius:9px; font-size:0.75rem; outline:none; width:200px; transition:border-color 0.2s;"
+              style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;padding:6px 10px 6px 28px;border-radius:8px;font-size:0.72rem;outline:none;width:190px;"
               onfocus="this.style.borderColor='rgba(0,245,255,0.4)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
           </div>
         </div>
-
       </div>
     </div>
 
-    <!-- RESULTS TABLE -->
-    <div id="results-container" style="display:none;" class="glass" style="border-radius:16px; overflow:hidden;">
-      <div class="glass" style="border-radius:16px; overflow:hidden;">
-        <!-- Table header bar -->
-        <div style="background:linear-gradient(90deg, rgba(0,245,255,0.06), rgba(255,45,120,0.04)); border-bottom:1px solid rgba(0,245,255,0.12); padding:14px 18px; display:flex; align-items:center; flex-wrap:wrap; gap:12px; justify-content:space-between;">
-          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <h3 id="results-title" style="font-size:0.95rem; font-weight:700; color:#e2e8f0;">RFID Tag Miss Report</h3>
+    <!-- OP Summary KPI row -->
+    <div id="op-kpi-row" style="display:none;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;">
+      <div class="kpi-card">
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:6px;">Files Processed</div>
+        <div id="kpi-files" style="font-size:2rem;font-weight:800;color:var(--cyan);text-shadow:0 0 10px rgba(0,245,255,0.4);">0</div>
+      </div>
+      <div class="kpi-card">
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:6px;">Missions Identified</div>
+        <div id="kpi-missions" style="font-size:2rem;font-weight:800;color:#fbbf24;text-shadow:0 0 10px rgba(251,191,36,0.4);">0</div>
+      </div>
+      <div class="kpi-card">
+        <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:6px;">Failure Events</div>
+        <div id="kpi-failures" style="font-size:2rem;font-weight:800;color:var(--pink);text-shadow:0 0 10px rgba(255,45,120,0.4);">0</div>
+      </div>
+    </div>
+
+    <!-- Results Table -->
+    <div id="results-container" style="display:none;border-radius:15px;overflow:hidden;" class="glass">
+      <div class="glass" style="border-radius:15px;overflow:hidden;">
+        <div style="background:linear-gradient(90deg,rgba(0,245,255,0.06),rgba(255,45,120,0.04));border-bottom:1px solid rgba(0,245,255,0.12);padding:13px 17px;display:flex;align-items:center;flex-wrap:wrap;gap:11px;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+            <h3 id="results-title" style="font-size:0.9rem;font-weight:700;color:#e2e8f0;"></h3>
             <span id="badge-total-rows" class="chip chip-gray">0 rows</span>
             <span id="badge-flagged-rows" class="chip chip-pink" style="display:none;">0 flagged</span>
           </div>
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <button onclick="exportToExcel()" class="btn-primary" style="font-size:0.75rem; padding:7px 14px;">📥 Excel</button>
-            <button onclick="exportToCSV()" class="btn-ghost" style="font-size:0.75rem; padding:7px 12px;">CSV</button>
-            <button onclick="printReportTable()" class="btn-ghost" style="font-size:0.75rem; padding:7px 12px;">🖨 Print</button>
-            <button onclick="saveCurrentToHistory()" class="btn-pink" style="font-size:0.75rem;">💾 Save</button>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+            <button onclick="exportToExcel()" class="btn-primary" style="font-size:0.73rem;padding:6px 13px;">📥 Excel</button>
+            <button onclick="exportToCSV()" class="btn-ghost" style="font-size:0.73rem;padding:6px 11px;">CSV</button>
+            <button onclick="printReportTable()" class="btn-ghost" style="font-size:0.73rem;padding:6px 11px;">🖨 Print</button>
+            <button onclick="saveCurrentToHistory()" class="btn-pink" style="font-size:0.73rem;">💾 Save</button>
           </div>
         </div>
-
-        <!-- Table -->
         <div class="tbl-wrap">
           <table class="report-table">
             <thead id="report-thead"></thead>
@@ -594,59 +413,54 @@
     </div>
 
     <!-- History -->
-    <div class="glass" style="border-radius:16px; padding:20px; margin-top:20px;">
-      <div class="section-label">Report History <span style="font-weight:400; color:#475569;">(session)</span></div>
+    <div class="glass" style="border-radius:15px;padding:18px;margin-top:18px;">
+      <div class="section-label">Report History <span style="font-weight:400;color:#475569;">(session)</span></div>
       <div id="history-container">
-        <div style="font-size:0.78rem; color:#334155; font-style:italic;">No reports saved yet. Click "Save" after generating a report.</div>
+        <div style="font-size:0.75rem;color:#334155;font-style:italic;">No reports saved yet.</div>
       </div>
     </div>
 
-  </div><!-- end reports -->
+  </div><!-- /section-reports -->
 
   <!-- ════ SETTINGS SECTION ════ -->
   <div id="section-settings" style="display:none;">
-    <div class="glass" style="border-radius:16px; padding:26px;">
-      <div class="section-label" style="margin-bottom:18px;">Settings & Thresholds</div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+    <div class="glass" style="border-radius:15px;padding:24px;">
+      <div class="section-label" style="margin-bottom:16px;">Settings & Thresholds</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
         <div>
-          <label style="font-size:0.75rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:6px;">Station Profile Code</label>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">Station Profile Code</label>
           <input type="text" id="setting-profile-station" placeholder="e.g. SC-DIV-01" class="setting-input">
         </div>
         <div>
-          <label style="font-size:0.75rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:6px;">Engineer / Inspector Name</label>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">Engineer / Inspector Name</label>
           <input type="text" id="setting-profile-name" placeholder="e.g. Senior Section Engineer" class="setting-input">
         </div>
       </div>
-
       <div class="sep"></div>
-
-      <div style="font-size:0.78rem; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:14px;">Fault Detection Thresholds</div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+      <div style="font-size:0.75rem;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.07em;margin-bottom:13px;">Fault Detection Thresholds</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
         <div>
-          <label style="font-size:0.75rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:6px;">RFID "Tag Issue" Threshold (Unique Locos)</label>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">RFID "Tag Issue" Threshold (Unique Locos)</label>
           <input type="number" id="setting-rfid-unique" value="3" class="setting-input">
-          <div style="font-size:0.68rem; color:#475569; margin-top:4px;">Flag as 'Tag Issue' if same RFID misses across more than N Locos.</div>
+          <div style="font-size:0.65rem;color:#475569;margin-top:3px;">Flag if same RFID misses across N+ Locos.</div>
         </div>
         <div>
-          <label style="font-size:0.75rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:6px;">RFID "Loco Reader Issue" Threshold (Tags per Loco)</label>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">RFID "Loco Reader Issue" Threshold (Tags/Loco)</label>
           <input type="number" id="setting-rfid-single" value="5" class="setting-input">
-          <div style="font-size:0.68rem; color:#475569; margin-top:4px;">Flag as 'May Loco Reader Issue' if a single Loco misses more than N tags.</div>
+          <div style="font-size:0.65rem;color:#475569;margin-top:3px;">Flag if single Loco misses N+ tags.</div>
         </div>
         <div>
-          <label style="font-size:0.75rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:6px;">Station Health Temperature Threshold (°C)</label>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">Station Health Temperature Threshold (°C)</label>
           <input type="number" id="setting-station-temp" value="60" class="setting-input">
         </div>
         <div>
-          <label style="font-size:0.75rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:6px;">Station RX Packet Loss Threshold (%)</label>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">Station RX Packet Loss Threshold (%)</label>
           <input type="number" id="setting-stationrx-loss" value="10" class="setting-input">
         </div>
       </div>
-
-      <div style="margin-top:22px; display:flex; align-items:center; gap:14px;">
+      <div style="margin-top:20px;display:flex;align-items:center;gap:12px;">
         <button onclick="saveSettings()" class="btn-primary">💾 Save Settings</button>
-        <span id="settings-saved-toast" style="display:none; font-size:0.78rem; color:#34d399;">✓ Settings saved</span>
+        <span id="settings-saved-toast" style="display:none;font-size:0.75rem;color:#34d399;">✓ Settings saved</span>
       </div>
     </div>
   </div>
@@ -654,630 +468,1135 @@
 </main>
 
 <!-- ─── PROCEDURE DRAWER ─── -->
-<div id="procedure-backdrop" onclick="toggleProcedureDrawer()" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:40; display:none; backdrop-filter:blur(4px);"></div>
-<div id="procedure-drawer" class="drawer" style="position:fixed; top:0; right:0; height:100%; width:420px; background:var(--surface); border-left:1px solid rgba(255,255,255,0.07); z-index:50; transform:translateX(100%); overflow-y:auto; padding:24px;">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.07);">
-    <div class="neon-cyan" style="font-size:0.9rem; font-weight:700;">📋 Procedure Guide</div>
-    <button onclick="toggleProcedureDrawer()" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#94a3b8; width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:1rem;">✕</button>
+<div id="procedure-backdrop" onclick="toggleProcedureDrawer()" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:40;display:none;backdrop-filter:blur(4px);"></div>
+<div id="procedure-drawer" class="drawer" style="position:fixed;top:0;right:0;height:100%;width:400px;background:var(--surface);border-left:1px solid rgba(255,255,255,0.07);z-index:50;transform:translateX(100%);overflow-y:auto;padding:22px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:13px;border-bottom:1px solid rgba(255,255,255,0.07);">
+    <div class="neon-cyan" style="font-size:0.87rem;font-weight:700;">📋 Procedure Guide</div>
+    <button onclick="toggleProcedureDrawer()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
   </div>
-
-  <div class="proc-card">
-    <h4 class="neon-cyan">1. RFID Tag Miss Report</h4>
-    <div style="font-size:0.73rem; color:#64748b; line-height:1.6;">
-      <strong style="color:#94a3b8;">Transma File (Required):</strong> Date, Station, Loco Id, Direction, RFID, Tag Link Info, TIN, Abs Loc<br><br>
-      <strong style="color:#94a3b8;">Tag_Linking_data File (Optional):</strong> Nxt RFID Id and Dist and Dir sequence<br><br>
-      <strong style="color:var(--cyan);">Mode 1 – Transma Only:</strong> All missing types shown. <em>Actual Tag column hidden.</em><br><br>
-      <strong style="color:var(--pink);">Mode 2 – Both Files:</strong> All missing types shown with Actual Tag computed from TKG sequences for BothTagMissing. MainTagMissing & DuplicateTagMissing Actual Tag = RFID value.
-    </div>
-  </div>
-
-  <div class="proc-card">
-    <h4 style="color:#fbbf24;">2. Station Health Report</h4>
-    <div style="font-size:0.73rem; color:#64748b; line-height:1.6;">
-      <strong style="color:#94a3b8;">Columns:</strong> Date, Time, Station, Event Name, Event Info<br>
-      Computes hourly Rev/Fwd Power, Temp, PA Current. Forward-fills missing values.
-    </div>
-  </div>
-
-  <div class="proc-card">
-    <h4 style="color:#a78bfa;">3. Station RX Report</h4>
-    <div style="font-size:0.73rem; color:#64748b; line-height:1.6;">
-      <strong style="color:#94a3b8;">Columns:</strong> Date, Station, Event Name, Event Info<br>
-      Totals Radio-1 and Radio-2 RX packet counts. Flags defective radios.
-    </div>
-  </div>
-
-  <div class="proc-card">
-    <h4 style="color:#34d399;">4. Loco RX Report</h4>
-    <div style="font-size:0.73rem; color:#64748b; line-height:1.6;">
-      <strong style="color:#94a3b8;">Columns:</strong> Date, Traffic Dir, Cur Station ID, Loco ID, RadRxPktCnt, RadID
-    </div>
-  </div>
-
-  <div class="proc-card">
-    <h4 class="neon-pink">5. GPRS Faults Report</h4>
-    <div style="font-size:0.73rem; color:#64748b; line-height:1.6;">
-      <strong style="color:#94a3b8;">Columns:</strong> Date, Time, Station, Module, Fault Type, Fault Msg<br>
-      Filters active unresolved module faults.
-    </div>
-  </div>
+  <div class="proc-card"><h4 class="neon-cyan">1. RFID Tag Miss</h4><div style="font-size:0.7rem;color:#64748b;line-height:1.6;"><strong style="color:#94a3b8;">Transma (Required):</strong> Date, Station, Loco Id, Direction, RFID, Tag Link Info, TIN, Abs Loc<br><br><strong style="color:#94a3b8;">Tag_Linking_data (Optional):</strong> Nxt RFID sequence<br><br><strong style="color:var(--cyan);">Transma Only:</strong> Actual Tag column hidden.<br><strong style="color:var(--pink);">Both Files:</strong> Actual Tag computed for BothTagMissing; = RFID for Main/Dup.</div></div>
+  <div class="proc-card"><h4 style="color:#fbbf24;">2. Station Health</h4><div style="font-size:0.7rem;color:#64748b;line-height:1.6;"><strong style="color:#94a3b8;">Cols:</strong> Date, Time, Station, Event Name, Event Info. Forward-fills missing hourly values.</div></div>
+  <div class="proc-card"><h4 style="color:#a78bfa;">3. Station RX</h4><div style="font-size:0.7rem;color:#64748b;">Date, Station, Event Name, Event Info. Flags defective radios by packet loss.</div></div>
+  <div class="proc-card"><h4 style="color:#34d399;">4. Loco RX</h4><div style="font-size:0.7rem;color:#64748b;">Date, Traffic Dir, Cur Station ID, Loco ID, RadRxPktCnt, RadID.</div></div>
+  <div class="proc-card"><h4 class="neon-pink">5. GPRS Faults</h4><div style="font-size:0.7rem;color:#64748b;">Date, Time, Station, Module, Fault Type, Fault Msg.</div></div>
+  <div class="proc-card"><h4 style="color:#fbbf24;">6. OP Summary Report</h4><div style="font-size:0.7rem;color:#64748b;line-height:1.6;"><strong style="color:#94a3b8;">Required:</strong> Date, Time, Station, Loco Id, Direction, Mode, Brake, Abs Loc, Speed, RFID, TIN</div></div>
 </div>
 
 <!-- ─── JAVASCRIPT ─── -->
 <script>
-  // ─── STATE ───
-  let currentReportType = 'rfid';
-  let processedHeaders = [];
-  let processedRows = [];
-  let currentFileName = "";
-  let stationViewMode = 'latest';
-  let rawStationHealthRows = [];
-  let historyStore = [];
-  let rfidHasTkg = false;
-  let thresholds = { rfidUnique: 3, rfidSingle: 5, stationTemp: 60, stationRxLoss: 10 };
+// ─── STATE ───
+let currentReportType = 'rfid';
+let processedHeaders = [], processedRows = [];
+let currentFileName = "";
+let stationViewMode = 'latest';
+let rawStationHealthRows = [];
+let rawStationHealthRowsUnfilled = [];
+let historyStore = [];
+let rfidHasTkg = false;
+let thresholds = { rfidUnique:3, rfidSingle:5, stationTemp:60, stationRxLoss:10 };
 
-  // ─── INIT ───
-  selectReportType('rfid');
+// OP Summary state
+let opSummaryDf = [], opFailureDf = [];
+let currentOpTab = 'availability';
+let opFileCount = 0;
 
-  // ─── NAV ───
-  function switchNav(screen) {
-    document.getElementById('section-reports').style.display = screen === 'reports' ? '' : 'none';
-    document.getElementById('section-settings').style.display = screen === 'settings' ? '' : 'none';
-    ['reports','settings'].forEach(s => {
-      const el = document.getElementById('nav-' + s);
-      if (el) el.className = 'nav-btn' + (s === screen ? ' active' : '');
-    });
-  }
+// ─── INIT ───
+selectReportType('rfid');
 
-  function toggleProcedureDrawer() {
-    const drawer = document.getElementById('procedure-drawer');
-    const backdrop = document.getElementById('procedure-backdrop');
-    const hidden = drawer.style.transform === 'translateX(100%)' || drawer.style.transform === '';
-    if (hidden) {
-      drawer.style.transform = 'translateX(0)';
-      backdrop.style.display = '';
-    } else {
-      drawer.style.transform = 'translateX(100%)';
-      backdrop.style.display = 'none';
-    }
-  }
+// ─── NAV ───
+function switchNav(screen) {
+  document.getElementById('section-reports').style.display = screen==='reports'?'':'none';
+  document.getElementById('section-settings').style.display = screen==='settings'?'':'none';
+  ['reports','settings'].forEach(s => {
+    const el = document.getElementById('nav-'+s);
+    if(el) el.className = 'nav-btn'+(s===screen?' active':'');
+  });
+}
+function toggleProcedureDrawer() {
+  const d = document.getElementById('procedure-drawer');
+  const b = document.getElementById('procedure-backdrop');
+  const hidden = d.style.transform==='translateX(100%)'||d.style.transform==='';
+  d.style.transform = hidden?'translateX(0)':'translateX(100%)';
+  b.style.display = hidden?'':'none';
+}
 
-  // ─── REPORT TYPE SELECT ───
-  function selectReportType(typeId) {
-    currentReportType = typeId;
-    document.querySelectorAll('.report-card').forEach(c => c.classList.remove('active'));
-    const card = document.getElementById('card-' + typeId);
-    if (card) card.classList.add('active');
+// ─── REPORT TYPE ───
+function selectReportType(typeId) {
+  currentReportType = typeId;
+  document.querySelectorAll('.report-card').forEach(c => { c.classList.remove('active','active-amber'); });
+  const card = document.getElementById('card-'+typeId);
+  if(card) card.classList.add(typeId==='opsummary'?'active-amber':'active');
 
-    const rfidUp = document.getElementById('rfid-upload-inputs');
-    const genUp  = document.getElementById('generic-upload-input');
-    rfidUp.style.display = typeId === 'rfid' ? 'grid' : 'none';
-    genUp.style.display  = typeId !== 'rfid' ? 'block' : 'none';
+  document.getElementById('rfid-upload-inputs').style.display      = typeId==='rfid'       ? 'grid'  : 'none';
+  document.getElementById('generic-upload-input').style.display    = ['station','stationrx','loco','gprs'].includes(typeId) ? 'block' : 'none';
+  document.getElementById('opsummary-upload-input').style.display  = typeId==='opsummary'  ? 'block' : 'none';
 
-    document.getElementById('btn-process').disabled = false;
-    document.getElementById('results-container').style.display = 'none';
-    document.getElementById('report-controls').style.display = 'none';
-    document.getElementById('status-banner').style.display = 'none';
+  document.getElementById('btn-process').disabled = false;
+  document.getElementById('results-container').style.display = 'none';
+  document.getElementById('report-controls').style.display = 'none';
+  document.getElementById('status-banner').style.display = 'none';
+  document.getElementById('op-kpi-row').style.display = 'none';
 
-    const names = {
-      rfid: 'RFID Tag Miss Report', station: 'Station Health Report',
-      stationrx: 'Station RX Report', loco: 'Loco RX Report', gprs: 'GPRS Faults Report'
-    };
-    document.getElementById('active-report-badge').textContent = names[typeId] || '';
-  }
+  const names = { rfid:'RFID Tag Miss Report', station:'Station Health Report', stationrx:'Station RX Report', loco:'Loco RX Report', gprs:'GPRS Faults Report', opsummary:'OP Summary Report' };
+  document.getElementById('active-report-badge').textContent = names[typeId]||'';
+}
 
-  function updateFileName(inputId, displayId) {
-    const input = document.getElementById(inputId);
-    const display = document.getElementById(displayId);
-    if (!input || !display) return;
-    if (input.files.length === 0) {
-      display.textContent = 'No file selected';
-    } else if (input.files.length === 1) {
-      display.textContent = input.files[0].name;
-    } else {
-      display.textContent = `${input.files.length} files selected`;
-    }
-  }
+function updateFileName(inputId, displayId) {
+  const f = document.getElementById(inputId);
+  const d = document.getElementById(displayId);
+  if(!f||!d) return;
+  d.textContent = f.files.length===0?'No file selected': f.files.length===1?f.files[0].name:`${f.files.length} files selected`;
+}
 
-  // ─── HELPERS ───
-  function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
-  function pad2(n) { return String(n).padStart(2, '0'); }
-  function fmtDate(d) {
-    if (!(d instanceof Date) || isNaN(d)) return String(d || '');
-    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
-  }
-  function fmtTime(d) {
-    if (!(d instanceof Date) || isNaN(d)) return String(d || '');
-    return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
-  }
-  function extractVal(row, keys) {
-    for (let k of Object.keys(row)) {
-      const ck = norm(k);
-      for (let pk of keys) {
-        if (ck === norm(pk) || ck.includes(norm(pk))) return row[k];
-      }
-    }
-    return "";
-  }
-  function extractLocoId(fileName, rowObj) {
-    if (rowObj) {
-      const v = extractVal(rowObj, ['Loco ID','LocoID','Loco','Loco No','Engine']);
-      if (v && String(v).trim()) return String(v).trim();
-    }
-    if (fileName) {
-      const m = fileName.match(/^(\d+)_/) || fileName.match(/\b\d{5,6}\b/);
-      if (m) return m[1] || m[0];
-    }
-    return "";
-  }
-  function timeToSeconds(t) {
-    if (!t) return 0;
-    if (!isNaN(t) && !String(t).includes(':')) return Math.floor(parseFloat(t)*86400);
-    const p = String(t).split(':');
-    return (parseInt(p[0])||0)*3600 + (parseInt(p[1])||0)*60 + (parseInt(p[2])||0);
-  }
-  async function readFilesAllSheets(fileList) {
-    const all = [];
-    for (let f of fileList) {
-      const buf = await f.arrayBuffer();
-      const wb = XLSX.read(buf, { type:'array', cellDates:true });
-      wb.SheetNames.forEach(sn => {
-        XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval:"" }).forEach(r => {
-          r._fileName = f.name; r._sheetName = sn; all.push(r);
-        });
-      });
-    }
-    return all;
-  }
+// ─── UTILITIES & PARSING HELPERS ───
+function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function fmtDate(d){ if(!(d instanceof Date)||isNaN(d)) return String(d||''); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function fmtTime(d){ if(!(d instanceof Date)||isNaN(d)) return String(d||''); return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds()); }
 
-  // ─── PROCESS ───
-  async function processSelectedReport() {
-    const spinner = document.getElementById('processing-spinner');
-    const status  = document.getElementById('status-banner');
-    spinner.style.display = 'flex';
-    status.style.display = 'none';
-    try {
-      if (currentReportType === 'rfid') {
-        await processRfidReport();
+function cleanHeaderRow(headerRow) { return (headerRow||[]).map(h=>norm(h)); }
+function findCol(clean, name) { return clean.indexOf(norm(name)); }
+
+function normEvent(name) { return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function combinePower(revRaw, fwdRaw) {
+  if(!revRaw && !fwdRaw) return '';
+  const rev = revRaw ? (parseFloat(revRaw)/10).toFixed(1) : '';
+  const fwd = fwdRaw ? (parseFloat(fwdRaw)/10).toFixed(1) : '';
+  return rev + '/' + fwd;
+}
+
+function timeToSeconds(t) {
+  if(!t) return 0;
+  const s=String(t).trim();
+  if(s.includes(':')){ const p=s.split(':'); return (parseInt(p[0])||0)*3600+(parseInt(p[1])||0)*60+(parseInt(p[2])||0); }
+  if(!isNaN(s)) return Math.floor(parseFloat(s)*86400);
+  return 0;
+}
+function secondsToHHMMSS(secs) {
+  if(!secs||secs<=0) return '00:00:00';
+  const h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60), s=Math.floor(secs%60);
+  return pad2(h)+':'+pad2(m)+':'+pad2(s);
+}
+function getTimeDiffSeconds(t1, t2) {
+  return Math.abs(timeToSeconds(t2) - timeToSeconds(t1));
+}
+
+// Pick correct sheet
+function pickSheet(wb, typeId) {
+  const wantName = (typeId === 'station' || typeId === 'stationrx') ? 'station health' : typeId === 'gprs' ? 'gprs' : null;
+  if (wantName) {
+    const match = wb.SheetNames.find((n) => n.toLowerCase().includes(wantName));
+    if (match) return wb.Sheets[match];
+  }
+  return wb.Sheets[wb.SheetNames[0]];
+}
+
+// Read sheet into Array of Arrays (AOA)
+async function readFilesToAoa(fileList, typeId) {
+  let combinedAoa = [];
+  for(let file of fileList) {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const ws = pickSheet(wb, typeId);
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if(aoa.length) {
+      if(!combinedAoa.length) {
+        combinedAoa = aoa;
       } else {
-        const files = document.getElementById('file-generic').files;
-        if (!files.length) throw new Error("Please select at least one input file.");
-        const rows = await readFilesAllSheets(files);
-        currentFileName = files[0].name + (files.length > 1 ? ` (+${files.length-1} more)` : '');
-        if (currentReportType === 'station')  processStationHealth(rows);
-        else if (currentReportType === 'stationrx') processStationRx(rows);
-        else if (currentReportType === 'loco')  processLocoRx(rows);
-        else if (currentReportType === 'gprs')  processGprsFaults(rows);
+        combinedAoa.push(...aoa.slice(1));
       }
-    } catch (err) {
-      console.error(err);
-      status.className = 'banner-error';
-      status.textContent = 'Error: ' + err.message;
-      status.style.display = '';
-    } finally {
-      spinner.style.display = 'none';
     }
   }
+  return combinedAoa;
+}
 
-  // ═══════════════════════════════════════════════════════
-  //  1. RFID TAG MISS REPORT
-  // ═══════════════════════════════════════════════════════
-  async function processRfidReport() {
-    const transmaFiles = document.getElementById('file-transma').files;
-    const tkgFiles = document.getElementById('file-tkg').files;
-    if (!transmaFiles.length) throw new Error("Please select at least one Transma file.");
+// Extract column value from object row
+function extractVal(row, keys) {
+  for(let k of Object.keys(row)) {
+    const ck = norm(k);
+    for(let pk of keys) { if(ck===norm(pk)||ck.includes(norm(pk))) return row[k]; }
+  }
+  return "";
+}
+function extractLocoId(fileName, rowObj) {
+  if(rowObj){ const v=extractVal(rowObj,['Loco ID','LocoID','Loco','Loco No','Engine']); if(v&&String(v).trim()) return String(v).trim(); }
+  if(fileName){ const m=fileName.match(/^(\d+)_/)||fileName.match(/\b\d{5,6}\b/); if(m) return m[1]||m[0]; }
+  return "";
+}
 
-    const transmaRows = await readFilesAllSheets(transmaFiles);
-    const hasTkg = tkgFiles.length > 0;
-    rfidHasTkg = hasTkg;
-    const tkgRows = hasTkg ? await readFilesAllSheets(tkgFiles) : [];
-    currentFileName = transmaFiles[0].name;
-
-    // All missing types always included regardless of TKG presence
-    const missingTypes = ['bothtagmissing','maintagmissing','duplicatetagmissing'];
-
-    const records = [];
-    const seenKeys = new Set();
-
-    for (let row of transmaRows) {
-      const linkInfo = String(extractVal(row, ['Tag Link Info','TagLinkInfo']) || '').trim();
-      const linkNorm = norm(linkInfo);
-      if (!missingTypes.includes(linkNorm)) continue;
-
-      const locoId   = extractLocoId(row._fileName, row);
-      const rawDate  = extractVal(row, ['Date']);
-      const dateStr  = rawDate instanceof Date ? fmtDate(rawDate) : String(rawDate||'').trim();
-      const timeStr  = String(extractVal(row, ['Time']) || '').trim();
-      const station  = String(extractVal(row, ['Station']) || '').trim();
-      const rfid     = String(extractVal(row, ['RFID']) || '').trim();
-      const absLoc   = String(extractVal(row, ['Abs Loc','AbsLoc']) || '').trim();
-      const direction= String(extractVal(row, ['Direction']) || '').trim();
-      const tin      = String(extractVal(row, ['TIN']) || '').trim();
-
-      const dk = `${dateStr}_${station}_${locoId}_${rfid}_${tin}_${linkNorm}`;
-      if (seenKeys.has(dk)) continue;
-      seenKeys.add(dk);
-
-      records.push({ locoId, date:dateStr, time:timeStr, station, absLoc, direction, rfid, tagLinkInfo:linkInfo, tin });
-    }
-
-    if (!records.length) {
-      throw new Error("No missing tag records (BothTagMissing / MainTagMissing / DuplicateTagMissing) found in Transma file.");
-    }
-
-    // Remarks logic
-    const rfidLocoMap = {}, locoMissCnt = {};
-    records.forEach(r => {
-      if (r.rfid) {
-        if (!rfidLocoMap[r.rfid]) rfidLocoMap[r.rfid] = new Set();
-        if (r.locoId) rfidLocoMap[r.rfid].add(r.locoId);
-      }
-      if (r.locoId) locoMissCnt[r.locoId] = (locoMissCnt[r.locoId]||0) + 1;
+// Read all sheets into array of objects (for OP summary)
+async function readFilesAllSheets(fileList) {
+  const all = [];
+  for(let f of fileList) {
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf,{type:'array',cellDates:true});
+    wb.SheetNames.forEach(sn => {
+      XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:""}).forEach(r => { r._fileName=f.name; r._sheetName=sn; all.push(r); });
     });
+  }
+  return all;
+}
 
-    // TKG sequence tracker
-    const seqTracker = {};
+// ─── PROCESS TRIGGER ───
+async function processSelectedReport() {
+  const spinner = document.getElementById('processing-spinner');
+  const status  = document.getElementById('status-banner');
+  spinner.style.display='flex'; status.style.display='none';
+  try {
+    if(currentReportType==='rfid') {
+      await processRfidReport();
+    } else if(currentReportType==='opsummary') {
+      await processOpSummaryReport();
+    } else {
+      const files = document.getElementById('file-generic').files;
+      if(!files.length) throw new Error("Please select at least one input file.");
+      const aoa = await readFilesToAoa(files, currentReportType);
+      currentFileName = files[0].name+(files.length>1?` (+${files.length-1} more)`:'');
+      
+      let res;
+      if(currentReportType==='station')     res = buildStationHealthReport(aoa);
+      else if(currentReportType==='stationrx') res = buildStationRxReport(aoa, thresholds.stationRxLoss);
+      else if(currentReportType==='loco')      res = buildLocoRxReport(aoa);
+      else if(currentReportType==='gprs')      res = buildGprsReport(aoa);
 
-    // Build headers — "Actual Tag" only when TKG is uploaded
-    const baseHeaders = ['Series','Date','Time','Station','Loco ID','Abs Loc','Direction','RFID'];
-    if (hasTkg) baseHeaders.push('Actual Tag');
-    baseHeaders.push('Tag Link Info','TIN','Remarks');
-    processedHeaders = baseHeaders;
+      if(res.error) throw new Error(res.error);
 
-    let sn = 0;
-    processedRows = records.map(r => {
-      sn++;
-      const isBoth = norm(r.tagLinkInfo) === 'bothtagmissing';
-      const isMain = norm(r.tagLinkInfo) === 'maintagmissing';
-      const isDup  = norm(r.tagLinkInfo) === 'duplicatetagmissing';
+      if(currentReportType==='station') {
+        rawStationHealthRows = res.rows;
+        rawStationHealthRowsUnfilled = res.rawRows || [];
+        updateStationHealthView();
+      } else {
+        processedHeaders = res.headers;
+        processedRows = res.rows.map(r => ({
+          ...r,
+          _flagged: r['Defective Radio'] !== undefined ? r['Defective Radio'] !== '' : true
+        }));
+      }
 
-      let actualTag = '';
+      if(currentReportType==='loco') {
+        const ts=new Set(processedRows.map(r=>r['Traffic Dir']).filter(Boolean));
+        const ds=new Set(processedRows.map(r=>r['Date']).filter(Boolean));
+        document.getElementById('filter-loco-traffic').innerHTML='<option value="all">All</option>'+Array.from(ts).map(t=>`<option value="${t}">${t}</option>`).join('');
+        document.getElementById('filter-loco-date').innerHTML='<option value="all">All</option>'+Array.from(ds).sort().map(d=>`<option value="${d}">${d}</option>`).join('');
+      }
 
-      if (hasTkg) {
-        if (isBoth) {
-          // Find closest TKG record
-          let bestTkg = null, minDiff = Infinity;
-          const tSecs = timeToSeconds(r.time);
-          for (let tr of tkgRows) {
-            const td = String(extractVal(tr, ['Date'])||'').trim();
-            const ts = String(extractVal(tr, ['Station'])||'').trim();
-            if (td === r.date && ts === r.station) {
-              const trSecs = timeToSeconds(extractVal(tr, ['Time']));
-              if (trSecs <= tSecs) {
-                const diff = tSecs - trSecs;
-                if (diff < minDiff) { minDiff = diff; bestTkg = tr; }
-              }
+      renderReportTable();
+    }
+  } catch(err) {
+    console.error(err);
+    status.innerHTML = `<div style="background:rgba(255,45,120,0.1);border:1px solid rgba(255,45,120,0.35);color:#f87171;border-radius:9px;padding:10px 14px;font-size:0.78rem;">Error: ${err.message}</div>`;
+    status.style.display='';
+  } finally {
+    spinner.style.display='none';
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  1. RFID TAG MISS REPORT
+// ══════════════════════════════════════════════════
+async function processRfidReport() {
+  const transmaFiles = document.getElementById('file-transma').files;
+  const tkgFiles = document.getElementById('file-tkg').files;
+  if(!transmaFiles.length) throw new Error("Please select at least one Transma file.");
+
+  const transmaRows = await readFilesAllSheets(transmaFiles);
+  const hasTkg = tkgFiles.length > 0;
+  rfidHasTkg = hasTkg;
+  const tkgRows = hasTkg ? await readFilesAllSheets(tkgFiles) : [];
+  currentFileName = transmaFiles[0].name;
+
+  const missingTypes = ['bothtagmissing','maintagmissing','duplicatetagmissing'];
+  const records = [], seenKeys = new Set();
+
+  for(let row of transmaRows) {
+    const linkInfo = String(extractVal(row,['Tag Link Info','TagLinkInfo'])||'').trim();
+    const linkNorm = norm(linkInfo);
+    if(!missingTypes.includes(linkNorm)) continue;
+
+    const locoId    = extractLocoId(row._fileName,row);
+    const rawDate   = extractVal(row,['Date']);
+    const dateStr   = rawDate instanceof Date ? fmtDate(rawDate) : String(rawDate||'').trim();
+    const timeStr   = String(extractVal(row,['Time'])||'').trim();
+    const station   = String(extractVal(row,['Station'])||'').trim();
+    const rfid      = String(extractVal(row,['RFID'])||'').trim();
+    const absLoc    = String(extractVal(row,['Abs Loc','AbsLoc'])||'').trim();
+    const direction = String(extractVal(row,['Direction'])||'').trim();
+    const tin       = String(extractVal(row,['TIN'])||'').trim();
+
+    const dk = `${dateStr}_${station}_${locoId}_${rfid}_${tin}_${linkNorm}`;
+    if(seenKeys.has(dk)) continue;
+    seenKeys.add(dk);
+    records.push({ locoId,date:dateStr,time:timeStr,station,absLoc,direction,rfid,tagLinkInfo:linkInfo,tin });
+  }
+
+  if(!records.length) throw new Error("No missing tag records found in Transma file.");
+
+  const rfidLocoMap={}, locoMissCnt={};
+  records.forEach(r => {
+    if(r.rfid){ if(!rfidLocoMap[r.rfid]) rfidLocoMap[r.rfid]=new Set(); if(r.locoId) rfidLocoMap[r.rfid].add(r.locoId); }
+    if(r.locoId) locoMissCnt[r.locoId]=(locoMissCnt[r.locoId]||0)+1;
+  });
+
+  const seqTracker = {};
+  const baseHeaders = ['Series','Date','Time','Station','Loco ID','Abs Loc','Direction','RFID'];
+  if(hasTkg) baseHeaders.push('Actual Tag');
+  baseHeaders.push('Tag Link Info','TIN','Remarks');
+  processedHeaders = baseHeaders;
+
+  let sn=0;
+  processedRows = records.map(r => {
+    sn++;
+    const isBoth = norm(r.tagLinkInfo)==='bothtagmissing';
+    const isMain = norm(r.tagLinkInfo)==='maintagmissing';
+    const isDup  = norm(r.tagLinkInfo)==='duplicatetagmissing';
+    let actualTag = '';
+
+    if(hasTkg) {
+      if(isBoth) {
+        let bestTkg=null, minDiff=Infinity;
+        const tSecs = timeToSeconds(r.time);
+        for(let tr of tkgRows) {
+          const td=String(extractVal(tr,['Date'])||'').trim();
+          const ts=String(extractVal(tr,['Station'])||'').trim();
+          if(td===r.date&&ts===r.station) {
+            const trSecs=timeToSeconds(extractVal(tr,['Time']));
+            if(trSecs<=tSecs){ const diff=tSecs-trSecs; if(diff<minDiff){minDiff=diff;bestTkg=tr;} }
+          }
+        }
+        if(bestTkg) {
+          const seqRaw = extractVal(bestTkg,['Nxt RFID Id and Dist and Dir','NxtRFIDIdandDistandDir','RFIDSequence','Sequence']);
+          if(seqRaw) {
+            const seqArray = String(seqRaw).replace('[','').replace(']','').trim().split(',').map(x=>x.trim().split('-')[0].trim());
+            const tk=`${r.date}_${r.station}_${r.rfid}`;
+            seqTracker[tk]=(seqTracker[tk]||0)+1;
+            const idx=seqArray.indexOf(String(r.rfid).trim());
+            if(idx!==-1&&(idx+seqTracker[tk])<seqArray.length) actualTag=seqArray[idx+seqTracker[tk]];
+            else actualTag='Seq Out of Bounds';
+          } else actualTag='Seq Col Not Found';
+        } else actualTag='No Matching TKG Time';
+      } else if(isMain||isDup) {
+        actualTag=r.rfid;
+      }
+    }
+
+    let remarks='';
+    if(r.rfid&&rfidLocoMap[r.rfid]&&rfidLocoMap[r.rfid].size>thresholds.rfidUnique) remarks='Tag Issue';
+    else if(r.locoId&&locoMissCnt[r.locoId]>thresholds.rfidSingle) remarks='May Loco Reader Issue';
+
+    const obj={'Series':sn,'Date':r.date,'Time':r.time,'Station':r.station,'Loco ID':r.locoId,'Abs Loc':r.absLoc,'Direction':r.direction,'RFID':r.rfid};
+    if(hasTkg) obj['Actual Tag']=actualTag;
+    obj['Tag Link Info']=r.tagLinkInfo; obj['TIN']=r.tin; obj['Remarks']=remarks;
+    obj._flagged=remarks!==''; obj._linkNorm=norm(r.tagLinkInfo);
+    return obj;
+  });
+  renderReportTable();
+}
+
+// ══════════════════════════════════════════════════
+//  2. STATION HEALTH REPORT & DAY REPORT LOGIC
+// ══════════════════════════════════════════════════
+function buildStationHealthReport(aoa) {
+  const outputHeaders = [
+    'Date', 'Hour', 'Station',
+    'Radio1 Rev/Fwd Power', 'Radio1 Temperature', 'Radio1 PA Temperature', 'Radio1 Tx PA Current', 'Radio1 PA Supply Voltage',
+    'Radio2 Rev/Fwd Power', 'Radio2 Temperature', 'Radio2 PA Temperature', 'Radio2 Tx PA Current', 'Radio2 PA Supply Voltage',
+    'Current Running Key', 'Current Running Key Date'
+  ];
+  if (!aoa.length) return { headers: outputHeaders, rows: [], error: 'Sheet is empty.' };
+  const clean = cleanHeaderRow(aoa[0]);
+  const dateIdx = findCol(clean, 'date');
+  const timeIdx = findCol(clean, 'time');
+  const stationIdx = findCol(clean, 'station');
+  const eventNameIdx = findCol(clean, 'eventname');
+  const eventInfoIdx = findCol(clean, 'eventinfo');
+  const missing = [];
+  if (dateIdx === -1) missing.push('Date'); if (stationIdx === -1) missing.push('Station');
+  if (eventNameIdx === -1) missing.push('Event Name'); if (eventInfoIdx === -1) missing.push('Event Info');
+  if (missing.length) return { headers: outputHeaders, rows: [], error: 'Missing columns: ' + missing.join(', ') };
+
+  const EVT = {
+    r1fwd: 'radio1forwardpower', r1rev: 'radio1reversepower', r1temp: 'radio1temperature', r1patemp: 'radio1patemperature', r1cur: 'radio1txpacurrent', r1supvolt: 'radio1pasupplyvoltage',
+    r2fwd: 'radio2forwardpower', r2rev: 'radio2reversepower', r2temp: 'radio2temperature', r2patemp: 'radio2patemperature', r2cur: 'radio2txpacurrent', r2supvolt: 'radio2pasupplyvoltage',
+    keys: 'currentrunningkey'
+  };
+  const groups = {};
+  for (let i = 1; i < aoa.length; i++) {
+    const row = aoa[i];
+    if (!row || !row[dateIdx] || !row[stationIdx]) continue;
+    const dateVal = (row[dateIdx] instanceof Date) ? fmtDate(row[dateIdx]) : String(row[dateIdx]).trim();
+    const rawTime = timeIdx !== -1 ? row[timeIdx] : '';
+    const timeVal = (rawTime instanceof Date) ? fmtTime(rawTime) : String(rawTime || '').trim();
+    const station = String(row[stationIdx]).trim();
+    let eventName = normEvent(row[eventNameIdx]);
+    if (eventName.indexOf('currentrunningkey') !== -1) eventName = EVT.keys;
+    const eventInfo = String(row[eventInfoIdx] || '').trim();
+    if (!eventName) continue;
+    const hourNum = parseInt(String(timeVal).split(':')[0], 10);
+    const hourLabel = (isNaN(hourNum) ? '00' : pad2(hourNum)) + ':00';
+    const groupKey = dateVal + '_' + hourLabel + '_' + station;
+    if (!groups[groupKey]) groups[groupKey] = { date: dateVal, hour: hourLabel, station, values: {} };
+    groups[groupKey].values[eventName] = { info: eventInfo, date: dateVal, time: timeVal };
+  }
+  const keys = Object.keys(groups).sort((a, b) => {
+    const ga = groups[a], gb = groups[b];
+    if (ga.date !== gb.date) return ga.date < gb.date ? -1 : 1;
+    if (ga.hour !== gb.hour) return ga.hour < gb.hour ? -1 : 1;
+    return ga.station.localeCompare(gb.station);
+  });
+  // A few source files spell the supply-voltage event slightly differently, so try aliases in order.
+  const ALIASES = {
+    [EVT.r1supvolt]: ['radio1pasupplyvoltage', 'radio1pasupplyvolt', 'radio1supplyvoltage', 'radio1pavoltage', 'radio1pasupplyvoltagev'],
+    [EVT.r2supvolt]: ['radio2pasupplyvoltage', 'radio2pasupplyvolt', 'radio2supplyvoltage', 'radio2pavoltage', 'radio2pasupplyvoltagev']
+  };
+  const rows = keys.map((k) => {
+    const g = groups[k]; const v = g.values;
+    const get = (key) => {
+      if (v[key]) return v[key].info;
+      const alts = ALIASES[key];
+      if (alts) { for (const a of alts) { if (v[a]) return v[a].info; } }
+      return '';
+    };
+    const getDate = (key) => (v[key] ? v[key].date : '');
+    return {
+      'Date': g.date, 'Hour': g.hour, 'Station': g.station,
+      'Radio1 Rev/Fwd Power': combinePower(get(EVT.r1rev), get(EVT.r1fwd)),
+      'Radio1 Temperature': get(EVT.r1temp), 'Radio1 PA Temperature': get(EVT.r1patemp), 'Radio1 Tx PA Current': get(EVT.r1cur), 'Radio1 PA Supply Voltage': get(EVT.r1supvolt),
+      'Radio2 Rev/Fwd Power': combinePower(get(EVT.r2rev), get(EVT.r2fwd)),
+      'Radio2 Temperature': get(EVT.r2temp), 'Radio2 PA Temperature': get(EVT.r2patemp), 'Radio2 Tx PA Current': get(EVT.r2cur), 'Radio2 PA Supply Voltage': get(EVT.r2supvolt),
+      'Current Running Key': get(EVT.keys), 'Current Running Key Date': getDate(EVT.keys)
+    };
+  });
+
+  // Snapshot the raw (unfilled) hourly values before forward-filling, so the "Latest" view
+  // can do its own bounded (3-hour) lookback and mark which cells it had to backfill.
+  const rawRowsUnfilled = rows.map(r => ({ ...r }));
+
+  // Forward-fill empty cells per station
+  const fillCols = [
+    ['Radio1 Rev/Fwd Power'], ['Radio1 Temperature'], ['Radio1 PA Temperature'], ['Radio1 Tx PA Current'], ['Radio1 PA Supply Voltage'],
+    ['Radio2 Rev/Fwd Power'], ['Radio2 Temperature'], ['Radio2 PA Temperature'], ['Radio2 Tx PA Current'], ['Radio2 PA Supply Voltage'],
+    ['Current Running Key', 'Current Running Key Date']
+  ];
+  const lastByStation = {};
+  rows.forEach((row) => {
+    const st = row['Station'];
+    if (!lastByStation[st]) lastByStation[st] = {};
+    const last = lastByStation[st];
+    fillCols.forEach(([valCol, dateCol]) => {
+      if (!row[valCol]) {
+        if (last[valCol]) { row[valCol] = last[valCol]; if (dateCol) row[dateCol] = last[dateCol] || ''; }
+      } else {
+        last[valCol] = row[valCol];
+        if (dateCol) last[dateCol] = row[dateCol];
+      }
+    });
+  });
+
+  return { headers: outputHeaders, rows, rawRows: rawRowsUnfilled, error: rows.length ? null : 'No matching Station Health rows found — check Date/Station/Event Name/Event Info columns.' };
+}
+
+// Day Report MIN / MAX calculation
+const DAY_MIN_FWD = 10.0, DAY_RED_REV = 1.0, DAY_YELLOW_REV = 0.5;
+function parseRevFwd(str) {
+  if (!str) return null;
+  const parts = String(str).split('/');
+  if (parts.length < 2) return null;
+  const rev = parseFloat(parts[0]), fwd = parseFloat(parts[1]);
+  if (isNaN(rev) || isNaN(fwd)) return null;
+  return { rev, fwd };
+}
+function fmtDayPair(p) {
+  if (!p) return '0.0/0.0';
+  return p.fwd.toFixed(1) + '/' + p.rev.toFixed(1);
+}
+function dayPairSeverity(p) {
+  if (!p) return 'red';
+  if (p.fwd < DAY_MIN_FWD || p.rev >= DAY_RED_REV) return 'red';
+  if (p.rev >= DAY_YELLOW_REV) return 'yellow';
+  return '';
+}
+function severityBg(sev) {
+  if (sev === 'red') return 'rgba(220,38,38,0.4)';
+  if (sev === 'yellow') return 'rgba(217,119,6,0.38)';
+  return 'transparent';
+}
+
+function buildDayReport(rawRows) {
+  const stations = []; const seen = {}; const data = {};
+  rawRows.forEach((r) => {
+    const st = r['Station'];
+    if (!st) return;
+    if (!seen[st]) { seen[st] = true; stations.push(st); data[st] = { r1: [], r2: [] }; }
+    const p1 = parseRevFwd(r['Radio1 Rev/Fwd Power']);
+    const p2 = parseRevFwd(r['Radio2 Rev/Fwd Power']);
+    if (p1) data[st].r1.push(p1);
+    if (p2) data[st].r2.push(p2);
+  });
+
+  stations.sort((a, b) => a.localeCompare(b));
+
+  const pickMax = (list) => list.length ? list.reduce((a, b) => (b.fwd > a.fwd ? b : a)) : null;
+  const pickMin = (list) => list.length ? list.reduce((a, b) => (b.fwd < a.fwd ? b : a)) : null;
+
+  const rows = stations.map((st, i) => {
+    const r1max = pickMax(data[st].r1), r1min = pickMin(data[st].r1);
+    const r2max = pickMax(data[st].r2), r2min = pickMin(data[st].r2);
+
+    const c1Sev = dayPairSeverity(r1max);
+    const c2Sev = dayPairSeverity(r1min);
+    const c3Sev = dayPairSeverity(r2max);
+    const c4Sev = dayPairSeverity(r2min);
+
+    const isFlagged = c1Sev !== '' || c2Sev !== '' || c3Sev !== '' || c4Sev !== '';
+
+    return {
+      'S.No': i + 1,
+      'Station': st,
+      'Radio-1 Max Fwd/Rev': fmtDayPair(r1max),
+      'Radio-1 Min Fwd/Rev': fmtDayPair(r1min),
+      'Radio-2 Max Fwd/Rev': fmtDayPair(r2max),
+      'Radio-2 Min Fwd/Rev': fmtDayPair(r2min),
+      '_c1Bg': severityBg(c1Sev),
+      '_c2Bg': severityBg(c2Sev),
+      '_c3Bg': severityBg(c3Sev),
+      '_c4Bg': severityBg(c4Sev),
+      '_flagged': isFlagged
+    };
+  });
+  return { headers: ['S.No', 'Station', 'Radio-1 Max Fwd/Rev', 'Radio-1 Min Fwd/Rev', 'Radio-2 Max Fwd/Rev', 'Radio-2 Min Fwd/Rev'], rows };
+}
+
+function updateStationHealthView() {
+  if (!rawStationHealthRows.length) return;
+
+  if (stationViewMode === 'day') {
+    const dayRes = buildDayReport(rawStationHealthRows);
+    processedHeaders = dayRes.headers;
+    processedRows = dayRes.rows;
+  } else {
+    let rows;
+    if (stationViewMode === 'latest') {
+      // Use the unfilled snapshot so we control exactly how far back we backfill (max 3 prior hourly records per station).
+      const unfilled = rawStationHealthRowsUnfilled.length ? rawStationHealthRowsUnfilled : rawStationHealthRows;
+      let maxHourKey = '';
+      unfilled.forEach((r) => { const k = (r['Date'] || '') + '_' + (r['Hour'] || ''); if (k > maxHourKey) maxHourKey = k; });
+
+      const fillPairs = [
+        ['Radio1 Rev/Fwd Power'], ['Radio1 Temperature'], ['Radio1 PA Temperature'], ['Radio1 Tx PA Current'], ['Radio1 PA Supply Voltage'],
+        ['Radio2 Rev/Fwd Power'], ['Radio2 Temperature'], ['Radio2 PA Temperature'], ['Radio2 Tx PA Current'], ['Radio2 PA Supply Voltage'],
+        ['Current Running Key', 'Current Running Key Date']
+      ];
+
+      // Chronological per-station sequence (unfilled rows are already sorted by Date then Hour).
+      const byStation = {};
+      unfilled.forEach((r) => { const st = r['Station']; (byStation[st] = byStation[st] || []).push(r); });
+
+      const latestRows = unfilled.filter((r) => (r['Date'] || '') + '_' + (r['Hour'] || '') === maxHourKey);
+      rows = latestRows.map((r) => {
+        const out = { ...r };
+        const filledMeta = {};
+        const stationSeq = byStation[r['Station']] || [];
+        const idx = stationSeq.indexOf(r);
+        fillPairs.forEach(([valCol, dateCol]) => {
+          if (out[valCol]) return; // already has its own reading this hour
+          for (let back = 1; back <= 3 && idx - back >= 0; back++) {
+            const priorRow = stationSeq[idx - back];
+            if (priorRow[valCol]) {
+              out[valCol] = priorRow[valCol];
+              if (dateCol) out[dateCol] = priorRow[dateCol] || '';
+              filledMeta[valCol] = `${priorRow['Date'] || ''} ${priorRow['Hour'] || ''}`.trim();
+              break;
             }
           }
-          if (bestTkg) {
-            const seqRaw = extractVal(bestTkg, ['Nxt RFID Id and Dist and Dir','NxtRFIDIdandDistandDir','RFIDSequence','Sequence']);
-            if (seqRaw) {
-              const seqArray = String(seqRaw).replace('[','').replace(']','').trim().split(',').map(x => x.trim().split('-')[0].trim());
-              const tk = `${r.date}_${r.station}_${r.rfid}`;
-              seqTracker[tk] = (seqTracker[tk]||0) + 1;
-              const idx = seqArray.indexOf(String(r.rfid).trim());
-              if (idx !== -1 && (idx + seqTracker[tk]) < seqArray.length) {
-                actualTag = seqArray[idx + seqTracker[tk]];
-              } else actualTag = "Seq Out of Bounds";
-            } else actualTag = "Seq Col Not Found";
-          } else actualTag = "No Matching TKG Time";
-        } else if (isMain || isDup) {
-          // For MainTagMissing and DuplicateTagMissing, Actual Tag = RFID value
-          actualTag = r.rfid;
+        });
+        if (Object.keys(filledMeta).length) out._filledMeta = filledMeta;
+        return out;
+      });
+    } else {
+      rows = [...rawStationHealthRows];
+    }
+    processedHeaders = [
+      'Date', 'Hour', 'Station',
+      'Radio1 Rev/Fwd Power', 'Radio1 Temperature', 'Radio1 PA Temperature', 'Radio1 Tx PA Current', 'Radio1 PA Supply Voltage',
+      'Radio2 Rev/Fwd Power', 'Radio2 Temperature', 'Radio2 PA Temperature', 'Radio2 Tx PA Current', 'Radio2 PA Supply Voltage',
+      'Current Running Key', 'Current Running Key Date'
+    ];
+    processedRows = rows.map(r => ({
+      ...r,
+      _flagged: (parseFloat(r['Radio1 Temperature']) > thresholds.stationTemp) || (parseFloat(r['Radio2 Temperature']) > thresholds.stationTemp)
+    }));
+  }
+  renderReportTable();
+}
+
+// ══════════════════════════════════════════════════
+//  3. STATION RX REPORT (Reference implementation)
+// ══════════════════════════════════════════════════
+function buildStationRxReport(aoa, lossPctThreshold) {
+  const EVT = { r1rx: 'radio1rxpacketcount', r2rx: 'radio2rxpacketcount' };
+  if (!aoa.length) return { headers: [], rows: [], error: 'Sheet is empty.' };
+  const clean = cleanHeaderRow(aoa[0]);
+  const dateIdx = findCol(clean, 'date');
+  const stationIdx = findCol(clean, 'station');
+  const eventNameIdx = findCol(clean, 'eventname');
+  const eventInfoIdx = findCol(clean, 'eventinfo');
+  const missing = [];
+  if (dateIdx === -1) missing.push('Date'); if (stationIdx === -1) missing.push('Station');
+  if (eventNameIdx === -1) missing.push('Event Name'); if (eventInfoIdx === -1) missing.push('Event Info');
+  if (missing.length) return { headers: [], rows: [], error: 'Missing columns: ' + missing.join(', ') };
+
+  const groups = {}; const order = [];
+  for (let i = 1; i < aoa.length; i++) {
+    const row = aoa[i];
+    if (!row || !row[dateIdx] || !row[stationIdx]) continue;
+    const station = String(row[stationIdx]).trim();
+    const eventName = normEvent(row[eventNameIdx]);
+    if (eventName !== EVT.r1rx && eventName !== EVT.r2rx) continue;
+    const val = parseFloat(row[eventInfoIdx]);
+    if (isNaN(val)) continue;
+    if (!groups[station]) { groups[station] = { station, r1: 0, r2: 0 }; order.push(station); }
+    if (eventName === EVT.r1rx) groups[station].r1 += val;
+    else groups[station].r2 += val;
+  }
+  order.sort((a, b) => a.localeCompare(b));
+  const threshold = (typeof lossPctThreshold === 'number' && !isNaN(lossPctThreshold)) ? lossPctThreshold : 10;
+  const rows = order.map((station) => {
+    const g = groups[station];
+    const max = Math.max(g.r1, g.r2);
+    const pct = max > 0 ? Math.round(Math.abs(g.r1 - g.r2) / max * 100) : 0;
+    const defective = pct > threshold ? (g.r1 < g.r2 ? 'Radio-1' : 'Radio-2') : '';
+    return { 'Station Name': g.station, 'Station Code': '', 'Radio1 RX count': g.r1, 'Radio2 Rx count': g.r2, 'Packet Loss w.r.t other Radio (%)': pct, 'Defective Radio': defective };
+  });
+  return { headers: ['Station Name', 'Station Code', 'Radio1 RX count', 'Radio2 Rx count', 'Packet Loss w.r.t other Radio (%)', 'Defective Radio'], rows, error: rows.length ? null : 'No matching Radio-1/Radio-2 Rx Packet Count rows found — check Station/Event Name/Event Info columns.' };
+}
+
+// ══════════════════════════════════════════════════
+//  4. LOCO RX REPORT (Reference implementation)
+// ══════════════════════════════════════════════════
+const RADID_LABELS = { sr1lr1: 'SR1LR1', sr1lr2: 'SR1LR2', sr2lr1: 'SR2LR1', sr2lr2: 'SR2LR2' };
+const RADID_REMARK_LABELS = { sr1lr1: 'Station Radio 1 - Loco Radio 1', sr1lr2: 'Station Radio 1 - Loco Radio 2', sr2lr1: 'Station Radio 2 - Loco Radio 1', sr2lr2: 'Station Radio 2 - Loco Radio 2' };
+const RADID_ORDER = ['sr1lr1', 'sr1lr2', 'sr2lr1', 'sr2lr2'];
+function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+function buildLocoRxReport(aoa) {
+  if (!aoa.length) return { headers: [], rows: [], error: 'Sheet is empty.' };
+  const headers = aoa[0];
+  const clean = headers.map((h) => String(h).trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const dateIdx = clean.indexOf('date');
+  const trafficIdx = clean.indexOf('trafficdir');
+  const stationIdx = clean.indexOf('curstationid');
+  const pktIdx = clean.indexOf('radrxpktcnt');
+  const radIdx = clean.indexOf('radid');
+  const locoIdx = clean.indexOf('locoid');
+  const missing = [];
+  if (dateIdx === -1) missing.push('Date'); if (trafficIdx === -1) missing.push('Traffic Dir');
+  if (stationIdx === -1) missing.push('Cur Station ID'); if (pktIdx === -1) missing.push('RadRxPktCnt'); if (radIdx === -1) missing.push('RadID');
+  if (locoIdx === -1) missing.push('Loco ID');
+  if (missing.length) return { headers: [], rows: [], error: 'Missing columns: ' + missing.join(', ') };
+
+  const groups = {}; const order = [];
+  for (let i = 1; i < aoa.length; i++) {
+    const row = aoa[i];
+    if (!row || row.length <= Math.max(dateIdx, trafficIdx, stationIdx, pktIdx, radIdx, locoIdx)) continue;
+    let dateVal = row[dateIdx];
+    dateVal = (dateVal instanceof Date) ? fmtDate(dateVal) : String(dateVal || '').trim();
+    const traffic = String(row[trafficIdx] || '').trim();
+    const station = String(row[stationIdx] || '').trim();
+    const locoId = String(row[locoIdx] || '').trim();
+    const pkt = parseFloat(row[pktIdx]);
+    const rid = normId(row[radIdx]);
+    if (!dateVal || !station || isNaN(pkt) || !RADID_LABELS[rid]) continue;
+    const key = dateVal + '_' + traffic + '_' + station + '_' + locoId;
+    if (!groups[key]) { groups[key] = { date: dateVal, traffic, station, locoId, vals: {} }; order.push(key); }
+    const g = groups[key];
+    if (!g.vals[rid]) g.vals[rid] = { min: pkt, max: pkt };
+    else { if (pkt < g.vals[rid].min) g.vals[rid].min = pkt; if (pkt > g.vals[rid].max) g.vals[rid].max = pkt; }
+  }
+  order.sort((a, b) => {
+    const ga = groups[a], gb = groups[b];
+    if (ga.date !== gb.date) return ga.date < gb.date ? -1 : 1;
+    if (ga.traffic !== gb.traffic) return ga.traffic.localeCompare(gb.traffic);
+    return ga.station.localeCompare(gb.station);
+  });
+
+  const headersOut = ['Date', 'Traffic Dir', 'Cur Station ID', 'Loco ID'];
+  RADID_ORDER.forEach((id) => headersOut.push(RADID_LABELS[id]));
+  headersOut.push('Remarks');
+
+  function diagnose(spread) {
+    const entries = RADID_ORDER.map((id) => ({ id, val: spread[id] })).filter((e) => e.val !== undefined && e.val !== '');
+    if (entries.length < 2) return '';
+    const max = Math.max(...entries.map((e) => e.val));
+    const low = entries.filter((e) => (max - e.val) >= 10);
+    if (!low.length) return '';
+    const lowSet = new Set(low.map((e) => e.id));
+    const srFullyLow = ['sr1', 'sr2'].filter((sr) => ['lr1', 'lr2'].every((lr) => lowSet.has(sr + lr)));
+    const lrFullyLow = ['lr1', 'lr2'].filter((lr) => ['sr1', 'sr2'].every((sr) => lowSet.has(sr + lr)));
+    if (srFullyLow.length === 1) return 'Station Radio ' + srFullyLow[0].slice(2) + ' Packet Loss';
+    if (lrFullyLow.length === 1) return 'Loco Radio ' + lrFullyLow[0].slice(2) + ' Packet Loss';
+    return low.map((e) => RADID_REMARK_LABELS[e.id] + ' Packet Loss').join('; ');
+  }
+
+  const rows = order.map((key) => {
+    const g = groups[key];
+    const row = { 'Date': g.date, 'Traffic Dir': g.traffic, 'Cur Station ID': g.station, 'Loco ID': g.locoId };
+    const spread = {};
+    RADID_ORDER.forEach((id) => {
+      const v = g.vals[id];
+      const d = v ? (v.max - v.min) : '';
+      row[RADID_LABELS[id]] = d;
+      spread[id] = d === '' ? undefined : d;
+    });
+    row['Remarks'] = diagnose(spread);
+    return row;
+  });
+  return { headers: headersOut, rows, error: rows.length ? null : 'No matching Loco RX rows found — check Date/Traffic Dir/Cur Station ID/RadRxPktCnt/RadID columns.' };
+}
+
+function applyLocoFilters(){
+  const t=document.getElementById('filter-loco-traffic').value;
+  const d=document.getElementById('filter-loco-date').value;
+  renderReportTable(r=>(t==='all'||r['Traffic Dir']===t)&&(d==='all'||r['Date']===d));
+}
+
+// ══════════════════════════════════════════════════
+//  5. GPRS FAULTS REPORT (Reference implementation)
+// ══════════════════════════════════════════════════
+function buildGprsReport(aoa) {
+  if (!aoa.length) return { headers: [], rows: [], error: 'Sheet is empty.' };
+  const headers = aoa[0];
+  const cleanHeaders = headers.map((h) => String(h).trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const dateIdx = cleanHeaders.indexOf('date');
+  const timeIdx = cleanHeaders.indexOf('time');
+  const stationIdx = cleanHeaders.indexOf('station');
+  const moduleIdx = cleanHeaders.indexOf('module');
+  const typeIdx = cleanHeaders.indexOf('faulttype') !== -1 ? cleanHeaders.indexOf('faulttype') : cleanHeaders.indexOf('type');
+  const msgIdx = cleanHeaders.indexOf('faultmsg') !== -1 ? cleanHeaders.indexOf('faultmsg') : (cleanHeaders.indexOf('faultmessage') !== -1 ? cleanHeaders.indexOf('faultmessage') : cleanHeaders.indexOf('msg'));
+  const missing = [];
+  if (dateIdx === -1) missing.push('Date'); if (stationIdx === -1) missing.push('Station');
+  if (moduleIdx === -1) missing.push('Module'); if (typeIdx === -1) missing.push('Fault Type'); if (msgIdx === -1) missing.push('Fault Msg');
+  if (missing.length) return { headers: [], rows: [], error: 'Missing columns: ' + missing.join(', ') };
+
+  const tracker = {};
+  for (let i = 1; i < aoa.length; i++) {
+    const row = aoa[i];
+    const station = String(row[stationIdx] || '').trim();
+    const module = String(row[moduleIdx] || '').trim();
+    const faultType = String(row[typeIdx] || '').trim();
+    const faultMsg = String(row[msgIdx] || '').trim();
+    if (!station || !module || !faultMsg) continue;
+    const normalizedMsg = faultMsg.replace(/^RC_/i, 'FC_');
+    let rowDate = row[dateIdx];
+    if (!(rowDate instanceof Date)) { if (rowDate) rowDate = new Date(rowDate); else continue; }
+    const datePart = fmtDate(rowDate);
+    let timePart = '00:00:00';
+    const timeStr = timeIdx !== -1 ? row[timeIdx] : undefined;
+    if (timeStr instanceof Date) timePart = fmtTime(timeStr);
+    else if (typeof timeStr === 'string' && timeStr.split(':').length >= 2) timePart = timeStr;
+    const timestamp = new Date(datePart + 'T' + timePart).getTime();
+    const groupKey = station + '_' + module + '_' + normalizedMsg;
+    if (!tracker[groupKey] || timestamp > tracker[groupKey].timestamp) {
+      tracker[groupKey] = { timestamp, dateStr: datePart, timeStr: timePart, station, module, faultType, faultMsg };
+    }
+  }
+  const results = [];
+  for (const key in tracker) {
+    const rec = tracker[key];
+    const cleanType = rec.faultType.toLowerCase().replace(/[^a-z]/g, '');
+    if (cleanType.indexOf('recovery') !== -1) continue;
+    if (cleanType.indexOf('faultcode') !== -1 || cleanType.indexOf('fault') !== -1) results.push(rec);
+  }
+  results.sort((a, b) => b.timestamp - a.timestamp);
+  const rows = results.map((r) => ({ 'Date': r.dateStr, 'Time': r.timeStr, 'Station': r.station, 'Module': r.module, 'Fault Type': r.faultType, 'Fault Msg': r.faultMsg }));
+  return { headers: ['Date', 'Time', 'Station', 'Module', 'Fault Type', 'Fault Msg'], rows, error: null };
+}
+
+// ══════════════════════════════════════════════════
+//  6. OP SUMMARY REPORT (Ported from Streamlit/Python)
+// ══════════════════════════════════════════════════
+async function processOpSummaryReport() {
+  const files = document.getElementById('file-opsummary').files;
+  if(!files.length) throw new Error("Please select at least one TrainMission log file.");
+
+  opFileCount = files.length;
+  const allRows = await readFilesAllSheets(files);
+  currentFileName = files[0].name+(files.length>1?` (+${files.length-1} more)`:'');
+
+  if(!allRows.length) throw new Error("No data rows found in the uploaded file(s).");
+
+  const sampleRow = allRows[0];
+  function findColName(aliases) {
+    for(let k of Object.keys(sampleRow)) { const ck=norm(k); for(let a of aliases) { if(ck.includes(norm(a))) return k; } }
+    return null;
+  }
+  const cDate  = findColName(['date']);
+  const cTime  = findColName(['time','timestamp']);
+  const cStn   = findColName(['station']);
+  const cAbsLoc= findColName(['abs loc','absloc']);
+  const cRfid  = findColName(['rfid']);
+  const cTin   = findColName(['tin']);
+  const cMode  = findColName(['mode']);
+  const cBrake = findColName(['brake','brk']);
+  const cDir   = findColName(['direction','dir']);
+  const cLoco  = findColName(['loco id','locoid','loco']);
+  const cSpeed = findColName(['speed','kmph','spd']);
+
+  if(!cMode||!cBrake||!cLoco||!cDir||!cAbsLoc||!cTime) {
+    throw new Error("Critical columns missing! Need: Mode, Brake, Loco Id, Direction, Abs Loc, Time.");
+  }
+
+  const rows = allRows.map(r => {
+    const t = String(r[cTime]||'');
+    r._sortSecs = timeToSeconds(t);
+    return r;
+  });
+  rows.sort((a,b) => {
+    const la=String(a[cLoco]||'').trim(), lb=String(b[cLoco]||'').trim();
+    if(la!==lb) return la.localeCompare(lb);
+    return a._sortSecs-b._sortSecs;
+  });
+
+  const groups = {};
+  for(let row of rows) {
+    const loco=String(row[cLoco]||'').trim();
+    const dir=String(row[cDir]||'').trim();
+    if(!loco||loco==='-'||loco==='nan'||!dir||dir==='-'||dir==='nan') continue;
+    const k=`${loco}:::${dir}`;
+    if(!groups[k]) groups[k]={loco,dir,rows:[]};
+    groups[k].rows.push(row);
+  }
+
+  const missionMetrics=[], failureRows=[];
+
+  for(let [key,grp] of Object.entries(groups)) {
+    const {loco,dir,rows:gRows}=grp;
+    const n=gRows.length;
+
+    const trails=[], current=[];
+    let i=0;
+    while(i<n) {
+      current.push(gRows[i]);
+      const m=norm(gRows[i][cMode]||'');
+      const sp=parseFloat(gRows[i][cSpeed])||0;
+      if((m==='standby'||m==='isolation')&&sp===0) {
+        let fsIdx=-1;
+        for(let j=i+1;j<n;j++) { if(norm(gRows[j][cMode]||'')==='fullsupervision'){fsIdx=j;break;} }
+        if(fsIdx!==-1&&getTimeDiffSeconds(gRows[i][cTime],gRows[fsIdx][cTime])>3600) {
+          for(let k=i+1;k<fsIdx;k++) current.push(gRows[k]);
+          trails.push([...current]); current.length=0; i=fsIdx; continue;
         }
       }
+      i++;
+    }
+    if(current.length) trails.push([...current]);
 
-      // Remarks
-      let remarks = '';
-      if (r.rfid && rfidLocoMap[r.rfid] && rfidLocoMap[r.rfid].size > thresholds.rfidUnique) {
-        remarks = 'Tag Issue';
-      } else if (r.locoId && locoMissCnt[r.locoId] > thresholds.rfidSingle) {
-        remarks = 'May Loco Reader Issue';
+    for(let trail of trails) {
+      const st=trail[0], en=trail[trail.length-1];
+      const startStn=String(st[cStn]||'N/A').trim();
+      const endStn=String(en[cStn]||'N/A').trim();
+      const startTime=String(st[cTime]||'');
+      const endTime=String(en[cTime]||'');
+
+      const locs=trail.map(r=>parseFloat(r[cAbsLoc])).filter(v=>!isNaN(v));
+      const startAbs=locs.length?locs[0]:NaN;
+      const endAbs=locs.length?locs[locs.length-1]:NaN;
+      const totalDist=locs.length?Math.max(...locs)-Math.min(...locs):0;
+
+      let excludedSecs=0, downDist=0;
+      let ti=0, isStart=true;
+      const isValidVal=(v)=>{ const s=String(v==null?'':v).trim(); return s!=='' && s!=='-'; };
+      while(ti<trail.length) {
+        const cm=norm(trail[ti][cMode]||'');
+        if(cm!=='fullsupervision'&&cm!=='onsight'&&cm!=='') {
+          // START boundary: walk back to the last FullSupervision/OnSight row with a valid Time & Abs Loc
+          let startIdx=-1;
+          for(let b=ti-1;b>=0;b--) {
+            const bm=norm(trail[b][cMode]||'');
+            if(bm==='fullsupervision'||bm==='onsight') {
+              if(isValidVal(trail[b][cTime])&&isValidVal(trail[b][cAbsLoc])) { startIdx=b; break; }
+            }
+          }
+          const sIdx = startIdx!==-1 ? startIdx : ti;
+          const sT=trail[sIdx][cTime];
+          const sL=parseFloat(trail[sIdx][cAbsLoc]);
+
+          // END boundary: walk forward to the first OnSight row with a valid Time & Abs Loc
+          let endIdx=-1;
+          for(let f=ti+1;f<trail.length;f++) {
+            if(norm(trail[f][cMode]||'')==='onsight') {
+              if(isValidVal(trail[f][cTime])&&isValidVal(trail[f][cAbsLoc])) { endIdx=f; break; }
+            }
+          }
+          const eIdx = endIdx!==-1 ? endIdx : trail.length-1;
+          const eT=trail[eIdx][cTime];
+          const eL=parseFloat(trail[eIdx][cAbsLoc]);
+
+          const triggerL=parseFloat(trail[ti][cAbsLoc]);
+          const currStn=String(trail[ti][cStn]||'').trim().toUpperCase();
+          const isVrException=(cm==='staffresponsible'&&currStn==='VR'&&dir.toLowerCase()==='reverse'&&!isNaN(triggerL)&&triggerL>=57000&&triggerL<=59455);
+
+          if(!((isStart&&cm==='staffresponsible')||isVrException)) {
+            excludedSecs+=getTimeDiffSeconds(sT,eT);
+            if(!isNaN(sL)&&!isNaN(eL)) downDist+=Math.abs(eL-sL);
+          }
+          isStart=false;
+          ti = endIdx!==-1 ? endIdx : trail.length;
+        } else { isStart=false; ti++; }
       }
 
-      const obj = { 'Series': sn, 'Date': r.date, 'Time': r.time, 'Station': r.station, 'Loco ID': r.locoId, 'Abs Loc': r.absLoc, 'Direction': r.direction, 'RFID': r.rfid };
-      if (hasTkg) obj['Actual Tag'] = actualTag;
-      obj['Tag Link Info'] = r.tagLinkInfo;
-      obj['TIN'] = r.tin;
-      obj['Remarks'] = remarks;
-      obj._flagged = remarks !== '';
-      obj._linkNorm = norm(r.tagLinkInfo);
-      return obj;
-    });
+      const rawT=getTimeDiffSeconds(startTime,endTime);
+      const netTime=Math.max(0,rawT-excludedSecs);
+      const netDist=Math.max(0,totalDist-downDist);
+      const availTime=rawT>0?(netTime/rawT):0;
+      const availDist=totalDist>0?(netDist/totalDist):0;
 
-    renderReportTable();
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  2. STATION HEALTH REPORT
-  // ═══════════════════════════════════════════════════════
-  function processStationHealth(rawRows) { rawStationHealthRows = rawRows; updateStationHealthView(); }
-  function updateStationHealthView() {
-    if (!rawStationHealthRows.length) return;
-    const EVT = {
-      r1fwd:'radio1forwardpower', r1rev:'radio1reversepower', r1temp:'radio1temperature', r1patemp:'radio1patemperature', r1cur:'radio1txpacurrent',
-      r2fwd:'radio2forwardpower', r2rev:'radio2reversepower', r2temp:'radio2temperature', r2patemp:'radio2patemperature', r2cur:'radio2txpacurrent',
-      keys:'currentrunningkey'
-    };
-    const groups = {};
-    rawStationHealthRows.forEach(row => {
-      const dateVal = extractVal(row,['Date']), timeVal = extractVal(row,['Time']);
-      const station = extractVal(row,['Station']), eventName = norm(extractVal(row,['Event Name','EventName']));
-      const eventInfo = String(extractVal(row,['Event Info','EventInfo'])||'').trim();
-      if (!dateVal || !station) return;
-      const dStr = dateVal instanceof Date ? fmtDate(dateVal) : String(dateVal).trim();
-      const tStr = timeVal instanceof Date ? fmtTime(timeVal) : String(timeVal||'').trim();
-      const h = pad2(parseInt(tStr.split(':')[0],10)||0) + ':00';
-      const k = `${dStr}_${h}_${station}`;
-      if (!groups[k]) groups[k] = { date:dStr, hour:h, station, values:{} };
-      groups[k].values[eventName] = { info:eventInfo, date:dStr };
-    });
-    let keys = Object.keys(groups).sort((a,b) => {
-      const ga=groups[a], gb=groups[b];
-      if (ga.date !== gb.date) return ga.date < gb.date ? -1 : 1;
-      if (ga.hour !== gb.hour) return ga.hour < gb.hour ? -1 : 1;
-      return ga.station.localeCompare(gb.station);
-    });
-    if (stationViewMode === 'latest') {
-      let mx = '';
-      keys.forEach(k => { const dh = groups[k].date+'_'+groups[k].hour; if (dh > mx) mx = dh; });
-      keys = keys.filter(k => (groups[k].date+'_'+groups[k].hour) === mx);
+      missionMetrics.push({
+        'Loco Id':loco,'Direction':dir,'Station':`${startStn} - ${endStn}`,
+        'Start Abs Loc':isNaN(startAbs)?'':startAbs,'End Abs Loc':isNaN(endAbs)?'':endAbs,
+        'Start Time':startTime,'End Time':endTime,
+        'Down Time':secondsToHHMMSS(excludedSecs),'Down Distance':Math.round(downDist),
+        'Net Trail Duration':secondsToHHMMSS(netTime),'Net Trail Distance':Math.round(netDist),
+        '% Op Availability (Time)':(availTime*100).toFixed(1)+'%',
+        '% Op Availability (Distance)':(availDist*100).toFixed(1)+'%',
+        _flagged:availTime<0.95
+      });
     }
-    const comb = (r,f) => { if (!r && !f) return ''; return (r?(parseFloat(r)/10).toFixed(1):'')+'/'+(f?(parseFloat(f)/10).toFixed(1):''); };
-    const rows = keys.map(k => {
-      const g=groups[k], v=g.values;
-      const get = key => (v[key]?v[key].info:'');
-      const t1=get(EVT.r1temp), t2=get(EVT.r2temp);
-      return {
-        'Date':g.date,'Hour':g.hour,'Station':g.station,
-        'Radio1 Rev/Fwd Power':comb(get(EVT.r1rev),get(EVT.r1fwd)),
-        'Radio1 Temp':t1,'Radio1 PA Temp':get(EVT.r1patemp),'Radio1 Tx PA Current':get(EVT.r1cur),
-        'Radio2 Rev/Fwd Power':comb(get(EVT.r2rev),get(EVT.r2fwd)),
-        'Radio2 Temp':t2,'Radio2 PA Temp':get(EVT.r2patemp),'Radio2 Tx PA Current':get(EVT.r2cur),
-        'Current Running Key':get(EVT.keys),'Running Key Date':v[EVT.keys]?v[EVT.keys].date:'',
-        _flagged:(parseFloat(t1)>thresholds.stationTemp)||(parseFloat(t2)>thresholds.stationTemp)
-      };
-    });
-    const fillCols = ['Radio1 Rev/Fwd Power','Radio1 Temp','Radio1 PA Temp','Radio1 Tx PA Current','Radio2 Rev/Fwd Power','Radio2 Temp','Radio2 PA Temp','Radio2 Tx PA Current','Current Running Key','Running Key Date'];
-    const last = {};
-    rows.forEach(r => {
-      const st = r.Station;
-      if (!last[st]) last[st]={};
-      fillCols.forEach(c => { if (!r[c]) r[c]=last[st][c]||''; else last[st][c]=r[c]; });
-    });
-    processedHeaders = ['Date','Hour','Station','Radio1 Rev/Fwd Power','Radio1 Temp','Radio1 PA Temp','Radio1 Tx PA Current','Radio2 Rev/Fwd Power','Radio2 Temp','Radio2 PA Temp','Radio2 Tx PA Current','Current Running Key','Running Key Date'];
-    processedRows = rows;
-    renderReportTable();
-  }
 
-  // ═══════════════════════════════════════════════════════
-  //  3. STATION RX REPORT
-  // ═══════════════════════════════════════════════════════
-  function processStationRx(rawRows) {
-    const EVT = { r1:'radio1rxpacketcount', r2:'radio2rxpacketcount' };
-    const groups = {};
-    rawRows.forEach(row => {
-      const station = String(extractVal(row,['Station'])||'').trim();
-      const ev = norm(extractVal(row,['Event Name','EventName']));
-      const val = parseFloat(extractVal(row,['Event Info','EventInfo']));
-      if (!station || isNaN(val)) return;
-      if (!groups[station]) groups[station]={station,r1:0,r2:0};
-      if (ev===EVT.r1) groups[station].r1+=val;
-      else if (ev===EVT.r2) groups[station].r2+=val;
-    });
-    processedHeaders = ['Station Name','Radio1 RX count','Radio2 Rx count','Packet Loss w.r.t other Radio (%)','Defective Radio'];
-    processedRows = Object.values(groups).sort((a,b)=>a.station.localeCompare(b.station)).map(g => {
-      const mx = Math.max(g.r1,g.r2);
-      const pct = mx>0 ? Math.round(Math.abs(g.r1-g.r2)/mx*100) : 0;
-      const def = pct>thresholds.stationRxLoss ? (g.r1<g.r2?'Radio-1':'Radio-2') : '';
-      return {'Station Name':g.station,'Radio1 RX count':g.r1,'Radio2 Rx count':g.r2,'Packet Loss w.r.t other Radio (%)':pct,'Defective Radio':def,_flagged:def!==''};
-    });
-    renderReportTable();
-  }
+    for(let i=0;i<gRows.length;i++) {
+      const currM=String(gRows[i][cMode]||'').trim();
+      if(!currM||currM==='-') continue;
+      let prevM='Start of Log';
+      let isFirstEntry=true;
+      for(let c=i-1;c>=0;c--) {
+        const pm=String(gRows[c][cMode]||'').trim();
+        if(pm&&pm!=='-') { prevM=pm; isFirstEntry=false; break; }
+      }
+      if(isFirstEntry&&currM.toLowerCase()==='staffresponsible') prevM='staffresponsible';
+      if(currM===prevM) continue;
 
-  // ═══════════════════════════════════════════════════════
-  //  4. LOCO RX REPORT
-  // ═══════════════════════════════════════════════════════
-  function processLocoRx(rawRows) {
-    const RMAP = { sr1lr1:'SR1LR1', sr1lr2:'SR1LR2', sr2lr1:'SR2LR1', sr2lr2:'SR2LR2' };
-    const RKEYS = ['sr1lr1','sr1lr2','sr2lr1','sr2lr2'];
-    const groups = {};
-    rawRows.forEach(row => {
-      const rawDate=extractVal(row,['Date']), dateStr=rawDate instanceof Date?fmtDate(rawDate):String(rawDate||'').trim();
-      const traffic=String(extractVal(row,['Traffic Dir','TrafficDir'])||'').trim();
-      const station=String(extractVal(row,['Cur Station ID','CurStationID','Station'])||'').trim();
-      const locoId=String(extractVal(row,['Loco ID','LocoID'])||'').trim();
-      const pkt=parseFloat(extractVal(row,['RadRxPktCnt','PktCnt']));
-      const radId=norm(extractVal(row,['RadID','RadioID']));
-      if (!dateStr||!station||isNaN(pkt)||!RMAP[radId]) return;
-      const k=`${dateStr}_${traffic}_${station}_${locoId}`;
-      if (!groups[k]) groups[k]={date:dateStr,traffic,station,locoId,vals:{}};
-      const v=groups[k].vals;
-      if (!v[radId]) v[radId]={min:pkt,max:pkt};
-      else { if(pkt<v[radId].min)v[radId].min=pkt; if(pkt>v[radId].max)v[radId].max=pkt; }
-    });
-    processedHeaders=['Date','Traffic Dir','Cur Station ID','Loco ID','SR1LR1','SR1LR2','SR2LR1','SR2LR2','Remarks'];
-    processedRows=Object.keys(groups).sort().map(k=>{
-      const g=groups[k];
-      const row={'Date':g.date,'Traffic Dir':g.traffic,'Cur Station ID':g.station,'Loco ID':g.locoId};
-      const sp={};
-      RKEYS.forEach(id=>{const v=g.vals[id]; const d=v?v.max-v.min:''; row[RMAP[id]]=d; sp[id]=d===''?undefined:d;});
-      const vals=RKEYS.map(id=>sp[id]).filter(v=>v!==undefined);
-      let remarks='';
-      if(vals.length>=2){const mx=Math.max(...vals); const low=RKEYS.filter(id=>sp[id]!==undefined&&(mx-sp[id])>=10); if(low.length) remarks=low.map(id=>RMAP[id]+' Loss').join('; ');}
-      row['Remarks']=remarks; row._flagged=remarks!=='';
-      return row;
-    });
-    const trafficSet=new Set(processedRows.map(r=>r['Traffic Dir']).filter(Boolean));
-    const dateSet=new Set(processedRows.map(r=>r['Date']).filter(Boolean));
-    document.getElementById('filter-loco-traffic').innerHTML='<option value="all">All</option>'+Array.from(trafficSet).map(t=>`<option value="${t}">${t}</option>`).join('');
-    document.getElementById('filter-loco-date').innerHTML='<option value="all">All</option>'+Array.from(dateSet).sort().map(d=>`<option value="${d}">${d}</option>`).join('');
-    renderReportTable();
-  }
-  function applyLocoFilters() {
-    const t=document.getElementById('filter-loco-traffic').value;
-    const d=document.getElementById('filter-loco-date').value;
-    renderReportTable(r=>(t==='all'||r['Traffic Dir']===t)&&(d==='all'||r['Date']===d));
-  }
+      let j=i;
+      while(j<gRows.length&&String(gRows[j][cMode]||'').trim()===currM) j++;
 
-  // ═══════════════════════════════════════════════════════
-  //  5. GPRS FAULTS REPORT
-  // ═══════════════════════════════════════════════════════
-  function processGprsFaults(rawRows) {
-    const tracker={};
-    rawRows.forEach(row=>{
-      const station=String(extractVal(row,['Station'])||'').trim();
-      const module=String(extractVal(row,['Module'])||'').trim();
-      const faultType=String(extractVal(row,['Fault Type','FaultType','Type'])||'').trim();
-      const faultMsg=String(extractVal(row,['Fault Msg','FaultMsg','FaultMessage','Msg'])||'').trim();
-      if(!station||!module||!faultMsg) return;
-      const rd=extractVal(row,['Date']), rt=extractVal(row,['Time']);
-      const dStr=rd instanceof Date?fmtDate(rd):String(rd||'').trim();
-      const tStr=rt instanceof Date?fmtTime(rt):String(rt||'').trim();
-      const k=`${station}_${module}_${faultMsg.replace(/^RC_/i,'FC_')}`;
-      const ts=timeToSeconds(tStr);
-      if(!tracker[k]||ts>tracker[k].ts) tracker[k]={date:dStr,time:tStr,station,module,faultType,faultMsg,ts};
-    });
-    const results=[];
-    for(let k in tracker){
-      const r=tracker[k]; const ct=norm(r.faultType);
-      if(ct.includes('recovery')) continue;
-      if(ct.includes('faultcode')||ct.includes('fault')) results.push(r);
+      const iToFS=currM.toLowerCase()==='fullsupervision';
+      const isSrToOs=prevM.toLowerCase()==='staffresponsible'&&currM.toLowerCase()==='onsight';
+      const isTripToPost=prevM.toLowerCase()==='trip'&&currM.toLowerCase()==='posttrip';
+      const isPostToAny=prevM.toLowerCase()==='posttrip';
+      const isSrToAny=prevM.toLowerCase()==='staffresponsible';
+
+      if(!(iToFS||isSrToOs||isTripToPost||isPostToAny||isSrToAny)) {
+        failureRows.push({
+          'Type':'Mode Change',
+          'Date':cDate?String(gRows[i][cDate]||'').slice(0,10):'',
+          'Loco Id':loco,'Direction':dir,
+          'From Mode':prevM,'To Mode':currM,
+          'Mode Change Time':String(gRows[i][cTime]||''),
+          'Mode End Time':String(gRows[j-1][cTime]||''),
+          'Duration (s)':getTimeDiffSeconds(gRows[i][cTime],gRows[j-1][cTime]),
+          'Station':String(gRows[i][cStn]||''),
+          'From Abs Loc':String(gRows[i][cAbsLoc]||''),
+          'To Abs Loc':String(gRows[j-1][cAbsLoc]||''),
+          'RFID':cRfid?String(gRows[i][cRfid]||''):'',
+          'TIN':cTin?String(gRows[i][cTin]||''):'',
+          _flagged:true
+        });
+      }
     }
-    processedHeaders=['Date','Time','Station','Module','Fault Type','Fault Msg'];
-    processedRows=results.map(r=>({...r,_flagged:true}));
-    renderReportTable();
+
+    for(let ib=0;ib<gRows.length;ib++) {
+      const currB=String(gRows[ib][cBrake]||'').trim().toUpperCase();
+      if(!['EB','FSB','NSB'].includes(currB)) continue;
+      let prevB='Released / Normal';
+      for(let c=ib-1;c>=0;c--) {
+        const pb=String(gRows[c][cBrake]||'').trim().toUpperCase();
+        if(pb&&pb!=='-'&&pb!=='NAN') { prevB=pb; break; }
+      }
+      if(currB===prevB) continue;
+      let jb=ib;
+      while(jb<gRows.length&&String(gRows[jb][cBrake]||'').trim().toUpperCase()===currB) jb++;
+
+      failureRows.push({
+        'Type':'Brake Application',
+        'Date':cDate?String(gRows[ib][cDate]||'').slice(0,10):'',
+        'Loco Id':loco,'Direction':dir,
+        'From Mode':prevB,'To Mode':currB,
+        'Mode Change Time':String(gRows[ib][cTime]||''),
+        'Mode End Time':String(gRows[jb-1][cTime]||''),
+        'Duration (s)':getTimeDiffSeconds(gRows[ib][cTime],gRows[jb-1][cTime]),
+        'Station':String(gRows[ib][cStn]||''),
+        'From Abs Loc':String(gRows[ib][cAbsLoc]||''),
+        'To Abs Loc':String(gRows[jb-1][cAbsLoc]||''),
+        'RFID':cRfid?String(gRows[ib][cRfid]||''):'',
+        'TIN':cTin?String(gRows[ib][cTin]||''):'',
+        _flagged:true
+      });
+    }
   }
 
-  // ─── RENDER TABLE ───
-  function renderReportTable(customFilter=null) {
-    document.getElementById('results-container').style.display='';
-    document.getElementById('report-controls').style.display='';
+  opSummaryDf = missionMetrics;
+  opFailureDf = failureRows.sort((a,b)=>a['Loco Id'].localeCompare(b['Loco Id'])||a['Mode Change Time'].localeCompare(b['Mode Change Time']));
 
-    const csEl=document.getElementById('controls-station'), clEl=document.getElementById('controls-loco');
-    csEl.style.display = currentReportType==='station'?'flex':'none';
-    clEl.style.display = currentReportType==='loco'  ?'flex':'none';
+  document.getElementById('kpi-files').textContent = opFileCount;
+  document.getElementById('kpi-missions').textContent = opSummaryDf.length;
+  document.getElementById('kpi-failures').textContent = opFailureDf.length;
+  document.getElementById('op-kpi-row').style.display = 'grid';
 
-    const names={rfid:'RFID Tag Miss Report',station:'Station Health Report',stationrx:'Station RX Report',loco:'Loco RX Report',gprs:'GPRS Faults Report'};
-    document.getElementById('results-title').textContent = names[currentReportType]||'Report';
+  currentOpTab = 'availability';
+  switchOpTab('availability');
+}
 
-    let displayRows = customFilter ? processedRows.filter(customFilter) : processedRows;
+function switchOpTab(tab) {
+  currentOpTab = tab;
+  document.getElementById('tab-availability').className='tab-btn'+(tab==='availability'?' active':'');
+  document.getElementById('tab-failures').className='tab-btn'+(tab==='failures'?' active':'');
 
-    document.getElementById('badge-total-rows').textContent = displayRows.length+' rows';
-    const flagCnt = displayRows.filter(r=>r._flagged).length;
-    const flagBadge = document.getElementById('badge-flagged-rows');
-    flagBadge.textContent = flagCnt+' flagged';
-    flagBadge.style.display = flagCnt ? '' : 'none';
-
-    // Header
-    document.getElementById('report-thead').innerHTML = '<tr>' +
-      processedHeaders.map(h => {
-        const isActual = h === 'Actual Tag';
-        return `<th class="${isActual?'col-actual':''}">${h}</th>`;
-      }).join('') + '</tr>';
-
-    // Body
-    document.getElementById('report-tbody').innerHTML = displayRows.map(r => {
-      const flag = r._flagged;
-      return `<tr class="${flag?'row-flagged':''}">` +
-        processedHeaders.map(h => {
-          const val = r[h] !== undefined ? r[h] : '';
-          const isActual = h === 'Actual Tag';
-          const isSeries = h === 'Series';
-          const isLink   = h === 'Tag Link Info';
-
-          let cell = '';
-          if (isSeries) {
-            cell = `<span class="series-badge">${val}</span>`;
-          } else if (isLink) {
-            const ln = norm(String(val));
-            if (ln==='bothtagmissing') cell = `<span class="pill-both">BothTagMissing</span>`;
-            else if (ln==='maintagmissing') cell = `<span class="pill-main">MainTagMissing</span>`;
-            else if (ln==='duplicatetagmissing') cell = `<span class="pill-dup">DuplicateTagMissing</span>`;
-            else cell = String(val);
-          } else {
-            cell = String(val);
-          }
-
-          return `<td class="${isActual?'col-actual':''}">${cell}</td>`;
-        }).join('') +
-      '</tr>';
-    }).join('');
+  if(tab==='availability') {
+    processedHeaders = ['Loco Id','Direction','Station','Start Abs Loc','End Abs Loc','Start Time','End Time','Down Time','Down Distance','Net Trail Duration','Net Trail Distance','% Op Availability (Time)','% Op Availability (Distance)'];
+    processedRows = opSummaryDf;
+  } else {
+    processedHeaders = ['Type','Date','Loco Id','Direction','From Mode','To Mode','Mode Change Time','Mode End Time','Duration (s)','Station','From Abs Loc','To Abs Loc','RFID','TIN'];
+    processedRows = opFailureDf;
   }
+  renderReportTable();
+}
 
-  // ─── SEARCH ───
-  function filterTableSearch() {
-    const q = document.getElementById('table-search').value.toLowerCase();
-    renderReportTable(r => Object.keys(r).some(k => k !== '_flagged' && k !== '_linkNorm' && String(r[k]).toLowerCase().includes(q)));
-  }
+// ─── RENDER TABLE ───
+function renderReportTable(customFilter=null) {
+  document.getElementById('results-container').style.display='';
+  document.getElementById('report-controls').style.display='';
 
-  // ─── EXPORT ───
-  function exportToCSV() {
-    if (!processedHeaders.length) return;
-    const head = processedHeaders.map(h=>`"${String(h).replace(/"/g,'""')}"`).join(',');
-    const body = processedRows.map(r=>processedHeaders.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([head+'\n'+body],{type:'text/csv'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=`${currentReportType}_Report_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-    URL.revokeObjectURL(a.href);
-  }
+  document.getElementById('controls-station').style.display   = currentReportType==='station'   ?'flex':'none';
+  const latestLegend = document.getElementById('station-latest-legend');
+  if (latestLegend) latestLegend.style.display = (currentReportType==='station' && stationViewMode==='latest') ? 'inline-flex' : 'none';
+  document.getElementById('controls-loco').style.display      = currentReportType==='loco'      ?'flex':'none';
+  document.getElementById('controls-opsummary').style.display = currentReportType==='opsummary' ?'flex':'none';
 
-  function exportToExcel() {
-    if (!processedHeaders.length) return;
-    const data = processedRows.map(r=>{ const o={}; processedHeaders.forEach(h=>{o[h]=r[h]!==undefined?r[h]:''; }); return o; });
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Report');
-    XLSX.writeFile(wb, `${currentReportType}_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
-  }
+  const names={rfid:'RFID Tag Miss Report',station:'Station Health Report',stationrx:'Station RX Report',loco:'Loco RX Report',gprs:'GPRS Faults Report',opsummary:'OP Summary — '+(currentOpTab==='availability'?'Operational Availability':'Mode Transitions & Failures')};
+  document.getElementById('results-title').textContent=names[currentReportType]||'Report';
 
-  function printReportTable() {
-    if (!processedHeaders.length) return;
-    const w = window.open('','_blank');
-    if (!w) return;
-    const rowsHtml = processedRows.map(r=>'<tr>'+processedHeaders.map(h=>`<td style="padding:6px;border:1px solid #ddd;${h==='Actual Tag'?'background:#fce7f3;font-weight:700;color:#be185d;':''}">${r[h]||''}</td>`).join('')+'</tr>').join('');
-    w.document.write(`<html><head><title>${currentReportType} Report</title><style>body{font-family:Arial,sans-serif;padding:20px;}table{border-collapse:collapse;width:100%;font-size:11px;}th{background:#1e293b;color:#fff;padding:7px;text-align:left;border:1px solid #334155;}</style></head><body><h2>${currentReportType.toUpperCase()} Report</h2><p>Source: ${currentFileName} | ${processedRows.length} rows | ${new Date().toLocaleString()}</p><table><thead><tr>${processedHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
-    w.document.close(); w.focus(); w.print();
-  }
+  let displayRows=customFilter?processedRows.filter(customFilter):processedRows;
 
-  // ─── HISTORY ───
-  function saveCurrentToHistory() {
-    if (!processedRows.length) return;
-    const entry={id:Date.now(),reportType:currentReportType,fileName:currentFileName,timestamp:new Date().toLocaleString(),rowCount:processedRows.length,flaggedCount:processedRows.filter(r=>r._flagged).length,headers:[...processedHeaders],rows:JSON.parse(JSON.stringify(processedRows))};
-    historyStore.unshift(entry);
-    renderHistory();
-  }
-  function renderHistory() {
-    const c=document.getElementById('history-container');
-    if (!historyStore.length){c.innerHTML='<div style="font-size:0.78rem;color:#334155;font-style:italic;">No reports saved yet.</div>';return;}
-    c.innerHTML=historyStore.map(h=>`<div class="history-item" onclick="loadHistoryEntry(${h.id})"><div><div style="font-size:0.78rem;font-weight:700;color:var(--cyan);">${h.reportType.toUpperCase()} — ${h.fileName}</div><div style="font-size:0.68rem;color:#475569;margin-top:3px;">${h.timestamp} · ${h.rowCount} rows (${h.flaggedCount} flagged)</div></div><span class="chip chip-cyan" style="flex-shrink:0;">↩ Reload</span></div>`).join('');
-  }
-  function loadHistoryEntry(id) {
-    const e=historyStore.find(h=>h.id===id); if(!e) return;
-    currentReportType=e.reportType; processedHeaders=e.headers; processedRows=e.rows; currentFileName=e.fileName;
-    selectReportType(e.reportType); renderReportTable();
-  }
+  document.getElementById('badge-total-rows').textContent=displayRows.length+(currentReportType==='station'&&stationViewMode==='day'?' stations':' rows');
+  const flagCnt=displayRows.filter(r=>r._flagged).length;
+  const fb=document.getElementById('badge-flagged-rows');
+  fb.textContent=flagCnt+' flagged'; fb.style.display=flagCnt?'':'none';
 
-  // ─── SETTINGS ───
-  function saveSettings() {
-    thresholds.rfidUnique    = parseInt(document.getElementById('setting-rfid-unique').value)||3;
-    thresholds.rfidSingle    = parseInt(document.getElementById('setting-rfid-single').value)||5;
-    thresholds.stationTemp   = parseInt(document.getElementById('setting-station-temp').value)||60;
-    thresholds.stationRxLoss = parseInt(document.getElementById('setting-stationrx-loss').value)||10;
-    const toast=document.getElementById('settings-saved-toast');
-    toast.style.display=''; setTimeout(()=>toast.style.display='none',2500);
-  }
+  const colClassMap={
+    'Series':'col-series','S.No':'col-series','Date':'col-date','Time':'col-time','Station':'col-station',
+    'Loco ID':'col-loco','Abs Loc':'col-absloc','Direction':'col-dir','RFID':'col-rfid',
+    'Actual Tag':'col-actual','Tag Link Info':'col-taglink','TIN':'col-tin','Remarks':'col-remarks'
+  };
 
-  // ─── STATION VIEW ───
-  function setStationView(mode) {
-    stationViewMode=mode;
-    ['all','latest','day'].forEach(m=>{
-      const el=document.getElementById('btn-stn-'+m);
-      el.className=m===mode?'btn-primary':'btn-ghost';
-      el.style.fontSize='0.72rem'; el.style.padding='5px 12px';
-    });
-    updateStationHealthView();
-  }
+  // Header
+  document.getElementById('report-thead').innerHTML='<tr>'+
+    processedHeaders.map(h=>{
+      const cls=colClassMap[h]||'col-generic';
+      return `<th class="${cls}">${h}</th>`;
+    }).join('')+'</tr>';
+
+  // Body
+  document.getElementById('report-tbody').innerHTML=displayRows.map(r=>`
+    <tr class="${r._flagged?'row-flagged':''}">
+      ${processedHeaders.map(h=>{
+        const val = r[h] !== undefined ? r[h] : '';
+        const isActual=h==='Actual Tag';
+        const isSeries=h==='Series'||h==='S.No';
+        const isLink=h==='Tag Link Info';
+        const isAvail=h.includes('% Op Availability');
+
+        let cellStyle = '';
+        let cellTitle = '';
+        if (currentReportType === 'station' && stationViewMode === 'day') {
+          if (h === 'Radio-1 Max Fwd/Rev' && r._c1Bg) cellStyle = `background-color: ${r._c1Bg} !important;`;
+          else if (h === 'Radio-1 Min Fwd/Rev' && r._c2Bg) cellStyle = `background-color: ${r._c2Bg} !important;`;
+          else if (h === 'Radio-2 Max Fwd/Rev' && r._c3Bg) cellStyle = `background-color: ${r._c3Bg} !important;`;
+          else if (h === 'Radio-2 Min Fwd/Rev' && r._c4Bg) cellStyle = `background-color: ${r._c4Bg} !important;`;
+        } else if (currentReportType === 'station' && stationViewMode === 'latest' && r._filledMeta && r._filledMeta[h]) {
+          cellStyle = 'background-color: rgba(251,191,36,0.16) !important; box-shadow: inset 0 0 0 1px rgba(251,191,36,0.4);';
+          cellTitle = `Backfilled from ${r._filledMeta[h]} (blank at latest hour)`;
+        }
+
+        let cell='';
+        if(isSeries) cell=`<span class="series-badge">${val}</span>`;
+        else if(isLink){
+          const ln=norm(String(val));
+          if(ln==='bothtagmissing') cell=`<span class="pill-both">BothTagMissing</span>`;
+          else if(ln==='maintagmissing') cell=`<span class="pill-main">MainTagMissing</span>`;
+          else if(ln==='duplicatetagmissing') cell=`<span class="pill-dup">DuplicateTagMissing</span>`;
+          else cell=String(val);
+        } else if(isAvail){
+          const pct=parseFloat(val)||0;
+          const col=pct>=95?'#34d399':pct>=80?'#fbbf24':'#f87171';
+          cell=`<span style="color:${col};font-weight:700;">${val}</span>`;
+        } else cell=String(val);
+        if (cellTitle) cell += ` <span style="color:#fbbf24;font-size:0.62rem;" title="${cellTitle}">⏱</span>`;
+
+        return `<td class="${isActual?'col-actual':''}" style="${cellStyle}" ${cellTitle?`title="${cellTitle}"`:''}>${cell}</td>`;
+      }).join('')}
+    </tr>`).join('');
+}
+
+// ─── SEARCH ───
+function filterTableSearch(){
+  const q=document.getElementById('table-search').value.toLowerCase();
+  renderReportTable(r=>Object.keys(r).some(k=>!['_flagged','_linkNorm','_c1Bg','_c2Bg','_c3Bg','_c4Bg','_filledMeta'].includes(k)&&String(r[k]).toLowerCase().includes(q)));
+}
+
+// ─── EXPORT ───
+function exportToCSV(){
+  if(!processedHeaders.length) return;
+  const head=processedHeaders.map(h=>`"${String(h).replace(/"/g,'""')}"`).join(',');
+  const body=processedRows.map(r=>processedHeaders.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([head+'\n'+body],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`${currentReportType}_Report_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);
+}
+function exportToExcel(){
+  if(!processedHeaders.length) return;
+  const data=processedRows.map(r=>{const o={};processedHeaders.forEach(h=>{o[h]=r[h]!==undefined?r[h]:'';});return o;});
+  const ws=XLSX.utils.json_to_sheet(data);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Report');
+  XLSX.writeFile(wb,`${currentReportType}_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+function printReportTable(){
+  if(!processedHeaders.length) return;
+  const w=window.open('','_blank');if(!w) return;
+  const rowsHtml=processedRows.map(r=>'<tr>'+processedHeaders.map(h=>`<td style="padding:5px 8px;border:1px solid #ddd;${h==='Actual Tag'?'background:#fce7f3;font-weight:700;color:#be185d;':''}">${r[h]||''}</td>`).join('')+'</tr>').join('');
+  w.document.write(`<html><head><title>${currentReportType} Report</title><style>body{font-family:Arial,sans-serif;padding:18px;}table{border-collapse:collapse;width:100%;font-size:11px;}th{background:#1e293b;color:#fff;padding:6px 8px;text-align:left;border:1px solid #334155;}</style></head><body><h2>${currentReportType.toUpperCase()} Report</h2><p>Source: ${currentFileName} | ${processedRows.length} rows | ${new Date().toLocaleString()}</p><table><thead><tr>${processedHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
+  w.document.close();w.focus();w.print();
+}
+
+// ─── HISTORY ───
+function saveCurrentToHistory(){
+  if(!processedRows.length) return;
+  const e={id:Date.now(),reportType:currentReportType,fileName:currentFileName,timestamp:new Date().toLocaleString(),rowCount:processedRows.length,flaggedCount:processedRows.filter(r=>r._flagged).length,headers:[...processedHeaders],rows:JSON.parse(JSON.stringify(processedRows))};
+  historyStore.unshift(e);renderHistory();
+}
+function renderHistory(){
+  const c=document.getElementById('history-container');
+  if(!historyStore.length){c.innerHTML='<div style="font-size:0.75rem;color:#334155;font-style:italic;">No reports saved yet.</div>';return;}
+  c.innerHTML=historyStore.map(h=>`<div class="history-item" onclick="loadHistoryEntry(${h.id})"><div><div style="font-size:0.75rem;font-weight:700;color:var(--cyan);">${h.reportType.toUpperCase()} — ${h.fileName}</div><div style="font-size:0.65rem;color:#475569;margin-top:2px;">${h.timestamp} · ${h.rowCount} rows (${h.flaggedCount} flagged)</div></div><span class="chip chip-cyan" style="flex-shrink:0;">↩ Reload</span></div>`).join('');
+}
+function loadHistoryEntry(id){
+  const e=historyStore.find(h=>h.id===id);if(!e)return;
+  currentReportType=e.reportType;processedHeaders=e.headers;processedRows=e.rows;currentFileName=e.fileName;
+  selectReportType(e.reportType);renderReportTable();
+}
+
+// ─── SETTINGS ───
+function saveSettings(){
+  thresholds.rfidUnique    =parseInt(document.getElementById('setting-rfid-unique').value)||3;
+  thresholds.rfidSingle    =parseInt(document.getElementById('setting-rfid-single').value)||5;
+  thresholds.stationTemp   =parseInt(document.getElementById('setting-station-temp').value)||60;
+  thresholds.stationRxLoss =parseInt(document.getElementById('setting-stationrx-loss').value)||10;
+  const t=document.getElementById('settings-saved-toast');t.style.display='';setTimeout(()=>t.style.display='none',2500);
+}
+
+// ─── STATION VIEW ───
+function setStationView(mode){
+  stationViewMode=mode;
+  ['all','latest','day'].forEach(m=>{const el=document.getElementById('btn-stn-'+m);el.className=m===mode?'btn-primary':'btn-ghost';el.style.fontSize='0.7rem';el.style.padding='4px 11px';});
+  updateStationHealthView();
+}
 </script>
 </body>
 </html>
