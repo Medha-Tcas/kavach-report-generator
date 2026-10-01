@@ -6,6 +6,7 @@
 <title>Kavach Report Generator</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -338,7 +339,17 @@
           <button onclick="setStationView('day')" id="btn-stn-day" class="btn-ghost" style="font-size:0.7rem;padding:4px 11px;">Day Report</button>
           <span id="station-latest-legend" style="display:none;font-size:0.65rem;color:#fbbf24;align-items:center;gap:4px;margin-left:4px;">
             <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(251,191,36,0.35);box-shadow:inset 0 0 0 1px rgba(251,191,36,0.6);"></span>
-            Backfilled from an earlier hour (≤3h)
+            Backfilled from an earlier hour (≤3h; Running Key: last updated)
+          </span>
+        </div>
+        <div id="controls-gprs" style="display:none;align-items:center;gap:7px;">
+          <span style="font-size:0.68rem;color:#64748b;font-weight:600;">View:</span>
+          <button onclick="setGprsView('latest')" id="btn-gprs-latest" class="btn-primary" style="font-size:0.7rem;padding:4px 11px;">Active Faults</button>
+          <button onclick="setGprsView('count')" id="btn-gprs-count" class="btn-ghost" style="font-size:0.7rem;padding:4px 11px;">Fault Msg Count</button>
+          <span id="gprs-mincount-wrap" style="display:none;align-items:center;gap:5px;margin-left:6px;">
+            <span style="font-size:0.68rem;color:#64748b;">Min count:</span>
+            <input type="number" id="gprs-min-count" value="2" min="1" onchange="setGprsView('count')" class="setting-input" style="width:60px;padding:4px 8px;font-size:0.7rem;">
+            <button onclick="toggleGprsCount()" id="btn-gprs-showcount" class="btn-primary" style="font-size:0.7rem;padding:4px 11px;">Count Col: ON</button>
           </span>
         </div>
         <div id="controls-loco" style="display:none;align-items:center;gap:10px;">
@@ -457,6 +468,24 @@
           <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">Station RX Packet Loss Threshold (%)</label>
           <input type="number" id="setting-stationrx-loss" value="10" class="setting-input">
         </div>
+        <div>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">GPRS "Repeatedly Logging" Count Limit</label>
+          <input type="number" id="setting-gprs-repeat" value="8" min="1" class="setting-input">
+          <div style="font-size:0.65rem;color:#475569;margin-top:3px;">Fault Msg Count view: show "Repeatedly Logging" when count is more than N.</div>
+        </div>
+        <div>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">Station Health High Fwd Power Limit</label>
+          <input type="number" id="setting-fwd-high" value="10.5" step="0.1" class="setting-input">
+          <div style="font-size:0.65rem;color:#475569;margin-top:3px;">Excel export: Rev/Fwd cell turns pink if Fwd is above this.</div>
+        </div>
+        <div>
+          <label style="font-size:0.73rem;color:#94a3b8;font-weight:600;display:block;margin-bottom:5px;">Station Health High Rev Power Limit</label>
+          <div style="display:flex;gap:8px;">
+            <input type="number" id="setting-rev-good" value="0.5" step="0.1" class="setting-input" title="Good up to">
+            <input type="number" id="setting-rev-fair" value="0.8" step="0.1" class="setting-input" title="Fair up to">
+          </div>
+          <div style="font-size:0.65rem;color:#475569;margin-top:3px;">Left: Good up to (0.1–0.5). Right: Fair up to (0.6–0.8). Above Fair = Bad. Excel: Fair = yellow, Bad = pink.</div>
+        </div>
       </div>
       <div style="margin-top:20px;display:flex;align-items:center;gap:12px;">
         <button onclick="saveSettings()" class="btn-primary">💾 Save Settings</button>
@@ -478,7 +507,7 @@
   <div class="proc-card"><h4 style="color:#fbbf24;">2. Station Health</h4><div style="font-size:0.7rem;color:#64748b;line-height:1.6;"><strong style="color:#94a3b8;">Cols:</strong> Date, Time, Station, Event Name, Event Info. Forward-fills missing hourly values.</div></div>
   <div class="proc-card"><h4 style="color:#a78bfa;">3. Station RX</h4><div style="font-size:0.7rem;color:#64748b;">Date, Station, Event Name, Event Info. Flags defective radios by packet loss.</div></div>
   <div class="proc-card"><h4 style="color:#34d399;">4. Loco RX</h4><div style="font-size:0.7rem;color:#64748b;">Date, Traffic Dir, Cur Station ID, Loco ID, RadRxPktCnt, RadID.</div></div>
-  <div class="proc-card"><h4 class="neon-pink">5. GPRS Faults</h4><div style="font-size:0.7rem;color:#64748b;">Date, Time, Station, Module, Fault Type, Fault Msg.</div></div>
+  <div class="proc-card"><h4 class="neon-pink">5. GPRS Faults</h4><div style="font-size:0.7rem;color:#64748b;">Date, Time, Station, Module, Fault Type, Fault Msg. <strong style="color:#94a3b8;">Fault Msg Count</strong> view adds Count (repeated logging) and Remarks per Station &amp; Module.</div></div>
   <div class="proc-card"><h4 style="color:#fbbf24;">6. OP Summary Report</h4><div style="font-size:0.7rem;color:#64748b;line-height:1.6;"><strong style="color:#94a3b8;">Required:</strong> Date, Time, Station, Loco Id, Direction, Mode, Brake, Abs Loc, Speed, RFID, TIN</div></div>
 </div>
 
@@ -491,9 +520,12 @@ let currentFileName = "";
 let stationViewMode = 'latest';
 let rawStationHealthRows = [];
 let rawStationHealthRowsUnfilled = [];
+let gprsViewMode = 'latest';
+let gprsAoa = [];
 let historyStore = [];
 let rfidHasTkg = false;
-let thresholds = { rfidUnique:3, rfidSingle:5, stationTemp:60, stationRxLoss:10 };
+let thresholds = { rfidUnique:3, rfidSingle:5, stationTemp:60, stationRxLoss:10, gprsRepeat:8, fwdHigh:10.5, revGood:0.5, revFair:0.8 };
+let gprsShowCount = true;
 
 // OP Summary state
 let opSummaryDf = [], opFailureDf = [];
@@ -657,7 +689,7 @@ async function processSelectedReport() {
       if(currentReportType==='station')     res = buildStationHealthReport(aoa);
       else if(currentReportType==='stationrx') res = buildStationRxReport(aoa, thresholds.stationRxLoss);
       else if(currentReportType==='loco')      res = buildLocoRxReport(aoa);
-      else if(currentReportType==='gprs')      res = buildGprsReport(aoa);
+      else if(currentReportType==='gprs')      { gprsAoa = aoa; res = gprsBuild(aoa); }
 
       if(res.error) throw new Error(res.error);
 
@@ -999,7 +1031,8 @@ function updateStationHealthView() {
         const idx = stationSeq.indexOf(r);
         fillPairs.forEach(([valCol, dateCol]) => {
           if (out[valCol]) return; // already has its own reading this hour
-          for (let back = 1; back <= 3 && idx - back >= 0; back++) {
+          const maxBack = dateCol ? Infinity : 3; // Running Key logs rarely: look back to when it was last updated, however old
+          for (let back = 1; back <= maxBack && idx - back >= 0; back++) {
             const priorRow = stationSeq[idx - back];
             if (priorRow[valCol]) {
               out[valCol] = priorRow[valCol];
@@ -1209,6 +1242,112 @@ function buildGprsReport(aoa) {
   results.sort((a, b) => b.timestamp - a.timestamp);
   const rows = results.map((r) => ({ 'Date': r.dateStr, 'Time': r.timeStr, 'Station': r.station, 'Module': r.module, 'Fault Type': r.faultType, 'Fault Msg': r.faultMsg }));
   return { headers: ['Date', 'Time', 'Station', 'Module', 'Fault Type', 'Fault Msg'], rows, error: null };
+}
+
+function getGprsMinCount() {
+  const el = document.getElementById('gprs-min-count');
+  return Math.max(1, parseInt(el && el.value, 10) || 2);
+}
+
+// Fault Msg Count (Repeatedly Logging): per Station + Module + Fault Msg
+function buildGprsCountReport(aoa, minCount) {
+  if (!aoa.length) return { headers: [], rows: [], error: 'Sheet is empty.' };
+  const ch = aoa[0].map((h) => String(h).trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const dateIdx = ch.indexOf('date'), timeIdx = ch.indexOf('time');
+  const stationIdx = ch.indexOf('station'), moduleIdx = ch.indexOf('module');
+  const typeIdx = ch.indexOf('faulttype') !== -1 ? ch.indexOf('faulttype') : ch.indexOf('type');
+  const msgIdx = ch.indexOf('faultmsg') !== -1 ? ch.indexOf('faultmsg') : (ch.indexOf('faultmessage') !== -1 ? ch.indexOf('faultmessage') : ch.indexOf('msg'));
+  const missing = [];
+  if (dateIdx === -1) missing.push('Date'); if (stationIdx === -1) missing.push('Station');
+  if (moduleIdx === -1) missing.push('Module'); if (typeIdx === -1) missing.push('Fault Type'); if (msgIdx === -1) missing.push('Fault Msg');
+  if (missing.length) return { headers: [], rows: [], error: 'Missing columns: ' + missing.join(', ') };
+
+  const tracker = {};
+  for (let i = 1; i < aoa.length; i++) {
+    const row = aoa[i]; if (!row) continue;
+    const station = String(row[stationIdx] || '').trim();
+    const module = String(row[moduleIdx] || '').trim();
+    const faultType = String(row[typeIdx] || '').trim();
+    const faultMsg = String(row[msgIdx] || '').trim();
+    if (!station || !module || !faultMsg) continue;
+    const normalizedMsg = faultMsg.replace(/^RC_/i, 'FC_');
+    let rowDate = row[dateIdx];
+    if (!(rowDate instanceof Date)) { if (rowDate) rowDate = new Date(rowDate); else continue; }
+    if (isNaN(rowDate)) continue;
+    const datePart = fmtDate(rowDate);
+    let timePart = '00:00:00';
+    const timeStr = timeIdx !== -1 ? row[timeIdx] : undefined;
+    if (timeStr instanceof Date) timePart = fmtTime(timeStr);
+    else if (typeof timeStr === 'string' && timeStr.split(':').length >= 2) timePart = timeStr;
+    const ts = new Date(datePart + 'T' + timePart).getTime();
+    const cleanType = faultType.toLowerCase().replace(/[^a-z]/g, '');
+    const isRecovery = cleanType.indexOf('recovery') !== -1;
+    const isFault = !isRecovery && cleanType.indexOf('fault') !== -1;
+    if (!isRecovery && !isFault) continue;
+    const key = station + '|' + module + '|' + normalizedMsg;
+    const t = tracker[key] || (tracker[key] = { station, module, count: 0, lastFault: null, lastRecoveryTs: 0 });
+    if (isRecovery) { if (ts > t.lastRecoveryTs) t.lastRecoveryTs = ts; }
+    else {
+      t.count++;
+      if (!t.lastFault || ts > t.lastFault.ts) t.lastFault = { ts, dateStr: datePart, timeStr: timePart, faultType, faultMsg };
+    }
+  }
+  const results = Object.values(tracker).filter((t) => t.lastFault && t.count >= minCount);
+  results.sort((a, b) => a.station.localeCompare(b.station) || a.lastFault.ts - b.lastFault.ts || a.module.localeCompare(b.module));
+  const rows = results.map((t) => {
+    const active = t.lastFault.ts >= t.lastRecoveryTs;
+    const many = t.count > thresholds.gprsRepeat;
+    const remarks = many ? (active ? 'Repeatedly Logging(Active)' : 'Repeatedly Logging')
+                         : active ? 'Active' : (t.count > 1 ? 'Recovered & continuously logged' : 'Recovered');
+    return { 'Date': t.lastFault.dateStr, 'Time': t.lastFault.timeStr, 'Station': t.station, 'Module': t.module,
+             'Fault Msg': t.lastFault.faultMsg, 'Count': t.count, 'Fault Code': remarks };
+  });
+  return { headers: ['Date', 'Time', 'Station', 'Module', 'Fault Msg', 'Count', 'Fault Code'], rows,
+           error: rows.length ? null : 'No fault messages found with count ≥ ' + minCount + '.' };
+}
+
+// Colour tier for "Repeatedly Logging" by count (relative to the Settings limit)
+function gprsRepeatTier(count) {
+  const T = thresholds.gprsRepeat;
+  if (count > 4 * T) return { xl: 'FFFF7C80', ui: 'rgba(255,124,128,0.45)' };
+  if (count > 2 * T) return { xl: 'FFF4B183', ui: 'rgba(244,177,131,0.42)' };
+  if (count > T)     return { xl: 'FFFFE699', ui: 'rgba(255,230,153,0.35)' };
+  return null;
+}
+function gprsBuild(aoa) {
+  if (gprsViewMode !== 'count') return buildGprsReport(aoa);
+  const res = buildGprsCountReport(aoa, getGprsMinCount());
+  if (!res.error && !gprsShowCount) res.headers = res.headers.filter((h) => h !== 'Count');
+  return res;
+}
+function toggleGprsCount() {
+  gprsShowCount = !gprsShowCount;
+  const b = document.getElementById('btn-gprs-showcount');
+  b.textContent = 'Count Col: ' + (gprsShowCount ? 'ON' : 'OFF');
+  b.className = gprsShowCount ? 'btn-primary' : 'btn-ghost';
+  b.style.fontSize = '0.7rem'; b.style.padding = '4px 11px';
+  setGprsView('count');
+}
+function setGprsView(mode) {
+  gprsViewMode = mode;
+  ['latest', 'count'].forEach((m) => {
+    const el = document.getElementById('btn-gprs-' + m);
+    el.className = m === mode ? 'btn-primary' : 'btn-ghost';
+    el.style.fontSize = '0.7rem'; el.style.padding = '4px 11px';
+  });
+  if (!gprsAoa.length) return;
+  const res = gprsBuild(gprsAoa);
+  if (res.error) {
+    const st = document.getElementById('status-banner');
+    st.innerHTML = `<div style="background:rgba(255,45,120,0.1);border:1px solid rgba(255,45,120,0.35);color:#f87171;border-radius:9px;padding:10px 14px;font-size:0.78rem;">${res.error}</div>`;
+    st.style.display = '';
+    processedHeaders = res.headers || []; processedRows = [];
+  } else {
+    document.getElementById('status-banner').style.display = 'none';
+    processedHeaders = res.headers;
+    processedRows = res.rows.map((r) => ({ ...r, _flagged: true }));
+  }
+  renderReportTable();
 }
 
 // ══════════════════════════════════════════════════
@@ -1467,11 +1606,13 @@ function renderReportTable(customFilter=null) {
   document.getElementById('controls-station').style.display   = currentReportType==='station'   ?'flex':'none';
   const latestLegend = document.getElementById('station-latest-legend');
   if (latestLegend) latestLegend.style.display = (currentReportType==='station' && stationViewMode==='latest') ? 'inline-flex' : 'none';
+  document.getElementById('controls-gprs').style.display      = currentReportType==='gprs'      ?'flex':'none';
+  const gmc = document.getElementById('gprs-mincount-wrap'); if (gmc) gmc.style.display = (currentReportType==='gprs' && gprsViewMode==='count') ? 'inline-flex' : 'none';
   document.getElementById('controls-loco').style.display      = currentReportType==='loco'      ?'flex':'none';
   document.getElementById('controls-opsummary').style.display = currentReportType==='opsummary' ?'flex':'none';
 
   const names={rfid:'RFID Tag Miss Report',station:'Station Health Report',stationrx:'Station RX Report',loco:'Loco RX Report',gprs:'GPRS Faults Report',opsummary:'OP Summary — '+(currentOpTab==='availability'?'Operational Availability':'Mode Transitions & Failures')};
-  document.getElementById('results-title').textContent=names[currentReportType]||'Report';
+  document.getElementById('results-title').textContent=(names[currentReportType]||'Report')+(currentReportType==='gprs'&&gprsViewMode==='count'?' — Fault Msg Count':'');
 
   let displayRows=customFilter?processedRows.filter(customFilter):processedRows;
 
@@ -1483,7 +1624,7 @@ function renderReportTable(customFilter=null) {
   const colClassMap={
     'Series':'col-series','S.No':'col-series','Date':'col-date','Time':'col-time','Station':'col-station',
     'Loco ID':'col-loco','Abs Loc':'col-absloc','Direction':'col-dir','RFID':'col-rfid',
-    'Actual Tag':'col-actual','Tag Link Info':'col-taglink','TIN':'col-tin','Remarks':'col-remarks'
+    'Actual Tag':'col-actual','Tag Link Info':'col-taglink','TIN':'col-tin','Remarks':'col-remarks','Fault Code':'col-remarks'
   };
 
   // Header
@@ -1510,6 +1651,9 @@ function renderReportTable(customFilter=null) {
           else if (h === 'Radio-1 Min Fwd/Rev' && r._c2Bg) cellStyle = `background-color: ${r._c2Bg} !important;`;
           else if (h === 'Radio-2 Max Fwd/Rev' && r._c3Bg) cellStyle = `background-color: ${r._c3Bg} !important;`;
           else if (h === 'Radio-2 Min Fwd/Rev' && r._c4Bg) cellStyle = `background-color: ${r._c4Bg} !important;`;
+        } else if (currentReportType === 'gprs' && gprsViewMode === 'count' && (h === 'Fault Code' || h === 'Count') && String(r['Fault Code'] || '').indexOf('Repeatedly') === 0) {
+          const tier = gprsRepeatTier(Number(r['Count']));
+          if (tier) cellStyle = `background-color: ${tier.ui} !important;`;
         } else if (currentReportType === 'station' && stationViewMode === 'latest' && r._filledMeta && r._filledMeta[h]) {
           cellStyle = 'background-color: rgba(251,191,36,0.16) !important; box-shadow: inset 0 0 0 1px rgba(251,191,36,0.4);';
           cellTitle = `Backfilled from ${r._filledMeta[h]} (blank at latest hour)`;
@@ -1552,11 +1696,141 @@ function exportToCSV(){
 }
 function exportToExcel(){
   if(!processedHeaders.length) return;
+  if((currentReportType==='station'||currentReportType==='gprs') && typeof ExcelJS!=='undefined'){ exportStyledExcel(); return; }
   const data=processedRows.map(r=>{const o={};processedHeaders.forEach(h=>{o[h]=r[h]!==undefined?r[h]:'';});return o;});
   const ws=XLSX.utils.json_to_sheet(data);
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Report');
   XLSX.writeFile(wb,`${currentReportType}_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
+
+// ─── STYLED EXCEL (Station Health & GPRS Faults) ───
+async function exportStyledExcel() {
+  const isStation = currentReportType === 'station';
+  const XL = { title: 'FFFFD966', head: 'FF2F5597', pink: 'FFF4CCCC', yellow: 'FFFFD966' };
+  let headers = [...processedHeaders];
+  const rows = processedRows;
+  let title = '', sheetName = 'Report';
+
+  const dates = rows.map(r => r['Date']).filter(Boolean).sort();
+  let reportDate = dates.length ? dates[dates.length - 1] : '';
+  if (isStation && !reportDate) {
+    const d = rawStationHealthRows.map(r => r['Date']).filter(Boolean).sort();
+    reportDate = d.length ? d[d.length - 1] : '';
+  }
+  if (!reportDate) reportDate = new Date().toISOString().slice(0, 10);
+
+  if (isStation) {
+    sheetName = 'Station Health';
+    if (stationViewMode === 'latest') {
+      headers = headers.filter(h => h !== 'Date' && h !== 'Hour' && !/PA Supply Voltage/.test(h));
+      const hr = rows.length ? String(rows[0]['Hour'] || '') : '';
+      const hn = parseInt(hr.split(':')[0], 10);
+      const lbl = isNaN(hn) ? hr : pad2(hn % 12 === 0 ? 12 : hn % 12) + ':' + (hr.split(':')[1] || '00') + ' ' + (hn >= 12 ? 'PM' : 'AM');
+      title = `Station Health Report (${lbl}) ${reportDate}`;
+    } else if (stationViewMode === 'day') {
+      title = `Station Health Day Report ${reportDate}`;
+    } else {
+      title = `Station Health Report - All Hours`;
+    }
+  } else {
+    sheetName = 'GPRS Faults';
+    title = (gprsViewMode === 'count' ? 'GPRS Fault Msg Count Report ' : 'GPRS Faults Report ') + reportDate;
+  }
+
+  const thin = { style: 'thin', color: { argb: 'FF000000' } };
+  const border = { top: thin, left: thin, bottom: thin, right: thin };
+  const center = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(sheetName);
+
+  // Title row
+  ws.addRow([title]);
+  if (headers.length > 1) ws.mergeCells(1, 1, 1, headers.length);
+  const tc = ws.getCell(1, 1);
+  tc.font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FF000000' } };
+  tc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.title } };
+  tc.alignment = { vertical: 'middle', horizontal: 'center' };
+  tc.border = border;
+  ws.getRow(1).height = 32;
+
+  // Header row
+  const hr = ws.addRow(headers);
+  hr.height = headers.some(h => h.length > 14) ? 50 : 26;
+  hr.eachCell(c => {
+    c.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.head } };
+    c.alignment = center; c.border = border;
+  });
+
+  // Data rows
+  const isRevFwd = h => /Rev\/Fwd Power$/.test(h);
+  const isTemp = h => /Temperature$/.test(h);          // Radio Temperature + PA Temperature
+  const numOnly = v => /^-?\d+(\.\d+)?$/.test(String(v).trim());
+  rows.forEach(r => {
+    const vals = headers.map(h => {
+      let v = r[h] !== undefined && r[h] !== null ? r[h] : '';
+      if (isStation && stationViewMode !== 'day') {
+        if (isTemp(h) && v !== '' && numOnly(v)) v = v + '°C';
+        else if (/Tx PA Current$/.test(h) && v !== '' && numOnly(v)) v = v + 'A';
+      }
+      return v;
+    });
+    const xr = ws.addRow(vals);
+    xr.eachCell({ includeEmpty: true }, (c, i) => {
+      const h = headers[i - 1];
+      c.font = { name: 'Arial', size: 10 };
+      c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      c.border = border;
+      let fill = null;
+      const raw = r[h];
+      const blank = raw === undefined || raw === null || String(raw).trim() === '';
+      if (isStation && stationViewMode !== 'day') {
+        if (isRevFwd(h)) {
+          const p = parseRevFwd(raw);
+          if (!p) fill = XL.yellow;
+          else if (p.fwd > thresholds.fwdHigh || p.fwd < DAY_MIN_FWD || p.rev > thresholds.revFair) fill = XL.pink;   // Bad
+          else if (p.rev > thresholds.revGood) fill = XL.yellow;                                                    // Fair
+        } else if (isTemp(h)) {
+          if (blank) fill = XL.yellow;
+          else if (parseFloat(raw) > thresholds.stationTemp) fill = XL.pink;
+        }
+      } else if (isStation) {
+        const bg = { 'Radio-1 Max Fwd/Rev': r._c1Bg, 'Radio-1 Min Fwd/Rev': r._c2Bg, 'Radio-2 Max Fwd/Rev': r._c3Bg, 'Radio-2 Min Fwd/Rev': r._c4Bg }[h];
+        if (bg && bg.indexOf('220,38,38') !== -1) fill = XL.pink;
+        else if (bg && bg.indexOf('217,119,6') !== -1) fill = XL.yellow;
+      } else if (gprsViewMode === 'count' && (h === 'Fault Code' || h === 'Count') && String(r['Fault Code'] || '').indexOf('Repeatedly') === 0) {
+        const tier = gprsRepeatTier(Number(r['Count']));
+        if (tier) fill = tier.xl;
+      }
+      if (fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    });
+    xr.height = 20;
+  });
+
+  // Column widths
+  headers.forEach((h, i) => {
+    let w = 14;
+    if (h === 'Station') w = 13;
+    else if (h === 'Date') w = 13;
+    else if (h === 'Hour' || h === 'Time' || h === 'Count' || h === 'S.No') w = 10;
+    else if (h === 'Current Running Key Date') w = 24;
+    else if (h === 'Current Running Key') w = 18;
+    else if (h === 'Fault Msg' || h === 'Fault Code') {
+      const m = rows.reduce((a, r) => Math.max(a, String(r[h] || '').length), h.length);
+      w = Math.min(44, Math.max(18, m + 4));
+    }
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.views = [{ state: 'frozen', ySplit: 2 }];
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${isStation ? 'StationHealth' : 'GPRS'}_Report_${reportDate}.xlsx`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
 function printReportTable(){
   if(!processedHeaders.length) return;
   const w=window.open('','_blank');if(!w) return;
@@ -1588,6 +1862,11 @@ function saveSettings(){
   thresholds.rfidSingle    =parseInt(document.getElementById('setting-rfid-single').value)||5;
   thresholds.stationTemp   =parseInt(document.getElementById('setting-station-temp').value)||60;
   thresholds.stationRxLoss =parseInt(document.getElementById('setting-stationrx-loss').value)||10;
+  thresholds.gprsRepeat    =Math.max(1,parseInt(document.getElementById('setting-gprs-repeat').value)||8);
+  thresholds.fwdHigh       =parseFloat(document.getElementById('setting-fwd-high').value)||10.5;
+  const rg=parseFloat(document.getElementById('setting-rev-good').value), rf=parseFloat(document.getElementById('setting-rev-fair').value);
+  thresholds.revGood = isNaN(rg)?0.5:rg; thresholds.revFair = isNaN(rf)?0.8:Math.max(rf,thresholds.revGood);
+  if(gprsAoa.length && currentReportType==='gprs' && gprsViewMode==='count') setGprsView('count');
   const t=document.getElementById('settings-saved-toast');t.style.display='';setTimeout(()=>t.style.display='none',2500);
 }
 
