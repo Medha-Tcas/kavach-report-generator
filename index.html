@@ -786,27 +786,34 @@ async function processRfidReport() {
 
     if(hasTkg) {
       if(isBoth) {
-        let bestTkg=null, minDiff=Infinity;
         const tSecs = timeToSeconds(r.time);
+        // All TKG rows (same date & station) at or before this time, closest first
+        const cands = [];
         for(let tr of tkgRows) {
           const td=String(extractVal(tr,['Date'])||'').trim();
           const ts=String(extractVal(tr,['Station'])||'').trim();
           if(td===r.date&&ts===r.station) {
             const trSecs=timeToSeconds(extractVal(tr,['Time']));
-            if(trSecs<=tSecs){ const diff=tSecs-trSecs; if(diff<minDiff){minDiff=diff;bestTkg=tr;} }
+            if(trSecs<=tSecs) cands.push({ tr, diff:tSecs-trSecs });
           }
         }
-        if(bestTkg) {
-          const seqRaw = extractVal(bestTkg,['Nxt RFID Id and Dist and Dir','NxtRFIDIdandDistandDir','RFIDSequence','Sequence']);
-          if(seqRaw) {
+        cands.sort((a,b)=>a.diff-b.diff);
+        if(!cands.length) actualTag='No Matching TKG Time';
+        else {
+          const tk=`${r.date}_${r.station}_${r.rfid}`;
+          let counted=false, found=null, sawSeq=false, noCol=false;
+          for(const c of cands) {
+            const seqRaw = extractVal(c.tr,['Nxt RFID Id and Dist and Dir','NxtRFIDIdandDistandDir','RFIDSequence','Sequence']);
+            if(!seqRaw) { if(!sawSeq) noCol=true; break; }
+            sawSeq=true;
+            if(!counted){ seqTracker[tk]=(seqTracker[tk]||0)+1; counted=true; }
             const seqArray = String(seqRaw).replace('[','').replace(']','').trim().split(',').map(x=>x.trim().split('-')[0].trim());
-            const tk=`${r.date}_${r.station}_${r.rfid}`;
-            seqTracker[tk]=(seqTracker[tk]||0)+1;
             const idx=seqArray.indexOf(String(r.rfid).trim());
-            if(idx!==-1&&(idx+seqTracker[tk])<seqArray.length) actualTag=seqArray[idx+seqTracker[tk]];
-            else actualTag='Seq Out of Bounds';
-          } else actualTag='Seq Col Not Found';
-        } else actualTag='No Matching TKG Time';
+            if(idx!==-1&&(idx+seqTracker[tk])<seqArray.length){ found=seqArray[idx+seqTracker[tk]]; break; }
+            // Seq Out of Bounds in this row -> try the next closest earlier TKG row
+          }
+          actualTag = found!==null ? found : (noCol ? 'Seq Col Not Found' : 'Seq Out of Bounds');
+        }
       } else if(isMain||isDup) {
         actualTag=r.rfid;
       }
